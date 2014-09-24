@@ -72,7 +72,7 @@ bool MetaInfoParser::parseList()
     return true;
 }
 
-bool MetaInfoParser::parseDictionry(map<string, string>& dict)
+bool MetaInfoParser::parseDictionry(Dict& dict)
 {
     if (file_data[idx] != 'd') return false;
 
@@ -87,7 +87,7 @@ bool MetaInfoParser::parseDictionry(map<string, string>& dict)
         if(!parseString(key)) /*break*/return false;
 
         if (key == "info") {
-            map<string, string> info_dict;
+            Dict info_dict;
             parseDictionry(info_dict);
             if (file_data[idx] != 'e') return false;
             dict.insert(info_dict.begin(), info_dict.end());
@@ -110,7 +110,7 @@ bool MetaInfoParser::parseDictionry(map<string, string>& dict)
     return true;
 }
 
-void MetaInfoParser::fillMetaInfo(const map<string, string>& info_dict,
+void MetaInfoParser::fillMetaInfo(const Dict& info_dict,
                                   MetaInfo& meta_info)
 {
     meta_info.announce = info_dict.at("announce");

@@ -25,17 +25,21 @@ public:
 };
 
 class MetaInfoParser {
+    using Dict = map<string, string>;
+    
 public:
     bool parse(const ByteArray& data, MetaInfo& meta_info);
     void clear();
+    
+    const Dict& getDictionary() { return meta_dict; }
 
 private:
     bool parseString(string& name);
     bool parseInteger(llong& number);
     bool parseList();
-    bool parseDictionry(map<string, string>& dict);
+    bool parseDictionry(Dict& dict);
 
-    void fillMetaInfo(const map<string, string>& info_dict,
+    void fillMetaInfo(const Dict& info_dict,
                       MetaInfo& meta_info);
 
 private:
@@ -43,7 +47,7 @@ private:
     ByteArray info;
     size_t idx;
 
-    map<string, string> meta_dict;
+    Dict meta_dict;
 };
 _CLANY_END
 
