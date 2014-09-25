@@ -19,18 +19,18 @@ struct MetaInfo {
     vector<string> sha1_sums;
 };
 
-class ParseError : public runtime_error {
+class MetaInfoError : public runtime_error {
 public:
-    ParseError(const string& msg) : runtime_error(msg) {}
+    MetaInfoError(const string& msg) : runtime_error(msg) {}
 };
 
 class MetaInfoParser {
     using Dict = map<string, string>;
-    
+
 public:
     bool parse(const ByteArray& data, MetaInfo& meta_info);
     void clear();
-    
+
     const Dict& getDictionary() { return meta_dict; }
 
 private:

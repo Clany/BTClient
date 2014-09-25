@@ -20,7 +20,7 @@ enum { no_argument = 0, required_argument, optional_argument };
 struct LongOption {
     string name;
     int    has_arg;
-    int    val;
+    char   val;
 };
 
 class CmdLineParser {
@@ -142,7 +142,7 @@ private:
 
     string parseArg(const string& option, const string& next, int has_argument) const {
         // Option does not require an argument
-        if (!has_argument) return NULL_CHARACTER;
+        if (!has_argument) return string("\0", 1);
 
         size_t eq_sign_pos = option.find('=');
         string arg = eq_sign_pos == string::npos ? option.substr(1) : option.substr(eq_sign_pos + 1);
@@ -166,7 +166,7 @@ private:
                 name == option.substr(2, option.find('=') - 2)) {
                 curr_idx = idx;
                 parseArg();
-                if (opt_arg == NULL_CHARACTER || opt_arg == ":") return false;
+                if (opt_arg[0] == '\0' || opt_arg == ":") return false;
             }
         }
         return true;
@@ -190,8 +190,6 @@ private:
     // User defined available options
     map<char, Option>       opt_map;
     map<string, LongOption> long_opt_map;
-
-    const string NULL_CHARACTER = string("\0", 1);
 };
 
 template<>

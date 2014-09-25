@@ -103,7 +103,7 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
         } else if (parseInteger(number)) {
             dict.insert({key, to_string(number)});
         } else {
-            throw ParseError("Unable to parse torrent file!");
+            throw MetaInfoError("Unable to parse torrent file!");
         }
     } while (idx < file_data.size());
 
