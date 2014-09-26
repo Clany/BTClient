@@ -1,0 +1,15 @@
+Done:  Read and parse a torrent file
+
+To do:
+ - Basic: Setup transferring, include handshake protocol, info-hash etc.
+          Sending request message
+          Add and remove client, maintaining a client list
+          Configure connection state (choked and unchoked)
+          Transfer multiple pieces at the same time, calculate SHA-1 of downloaded piece
+          Write downloaded pieces to preallocated file on disk
+          Error handling
+
+ - Other: Upload and download at the same time
+          Fetch information from tracker server
+          Estimate transfer speed and set top N unchoked connections
+          Handle multi-file torrent
