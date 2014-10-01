@@ -126,7 +126,7 @@ public:
 
     bool isValid() const { return handle >= 0; }
 
-    virtual bool write(const string& message) {
+    virtual bool write(const string& message) const {
         if (::send(handle, message.c_str(), message.size(), 0) < 0) {
             cerr << "Fail to send the message!" << endl;
             return false;

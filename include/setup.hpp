@@ -10,6 +10,7 @@ typedef struct {
     string log_file;    // log file name
     string torrent_file;// torrent file name
     uint id;            // this bt_clients id
+	bool server_mode;
 //     FILE * f_save;
 //     peer_t * peers[MAX_CONNECTIONS]; // array of peer_t pointers
 //     int sockets[MAX_CONNECTIONS]; //Array of possible sockets
@@ -24,7 +25,7 @@ inline void usage(ostream& file)
          << "                \t are selected automatically\n"
          << "  -s save_file  \t Save the torrent in directory save_dir (dflt: .)\n"
          << "  -l log_file   \t Save logs to log_filw (dflt: bt-client.log)\n"
-         << "  -p ip:port    \t Instead of contacing the tracker for a peer list,\n"
+         << "  -p ip:port    \t Instead of contacting the tracker for a peer list,\n"
          << "                \t use this peer instead, ip:port (ip or hostname)\n"
          << "                \t (include multiple -p for more than 1 peer)\n"
          << "  -I id         \t Set the node identifier to id (dflt: random)\n"
@@ -38,6 +39,7 @@ inline void parse_args(CmdArgs& bt_args, int argc, char* argv[])
 
     /* set the default args */
     bt_args.verbose = 0; //no verbosity
+	bt_args.server_mode = true;
 
 //     //null out file pointers
 //     bt_args.f_save = NULL;
@@ -63,6 +65,7 @@ inline void parse_args(CmdArgs& bt_args, int argc, char* argv[])
             bt_args.log_file = cmd_parser.getArg<string>();
             break;
         case 'p': //peer
+			bt_args.server_mode = false;
 //             n_peers++;
 //             //check if we are going to overflow
 //             if (n_peers > MAX_CONNECTIONS) {
