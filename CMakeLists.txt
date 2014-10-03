@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.11)
-project(BitTorrent)
+project(bt_client)
 
 list(APPEND CMAKE_MODULE_PATH
   ${PROJECT_SOURCE_DIR}/cmake
@@ -28,6 +28,10 @@ endif()
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 
+find_package(TBB REQUIRED)
+include_directories(${TBB_INCLUDE_DIRS})
+link_directories(${TBB_LIBRARY_DIRS})
+
 set(SRC_LIST
   src/main.cpp
   src/metainfo.cpp
@@ -36,6 +40,7 @@ set(SRC_LIST
 )
 
 set(HEADER_LIST
+  include/setup.hpp
   include/socket.hpp
   include/tcp_server.hpp
   include/bt_client.h
@@ -43,5 +48,5 @@ set(HEADER_LIST
   include/metainfo.h
 )
 
-add_executable(bt-client ${SRC_LIST} ${HEADER_LIST})
-target_link_libraries(bt-client ${OPENSSL_LIBRARIES} ${WINSOCK2_LIB})
+add_executable(bt_client ${SRC_LIST} ${HEADER_LIST})
+target_link_libraries(bt_client ${TBB_LIBRARIES} ${OPENSSL_LIBRARIES} ${WINSOCK2_LIB})

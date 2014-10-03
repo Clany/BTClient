@@ -32,7 +32,7 @@ const WSA wsa;
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-#include "clany/clany_macros.h"
+#include "clany/clany_defs.h"
 
 _CLANY_BEGIN
 using SockAddrIN  = sockaddr_in;
@@ -126,7 +126,7 @@ public:
 
     bool isValid() const { return handle >= 0; }
 
-    virtual bool write(const string& message) {
+    virtual bool write(const string& message) const {
         if (::send(handle, message.c_str(), message.size(), 0) < 0) {
             cerr << "Fail to send the message!" << endl;
             return false;

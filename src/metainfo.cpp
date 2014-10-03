@@ -1,11 +1,10 @@
+#include <openssl/sha.h>
 #include "metainfo.h"
 
 using namespace std;
 using namespace clany;
 
-const int SHA1_LENGTH = 20;
-
-bool MetaInfoParser::parse(const ByteArray& data, MetaInfo& meta_info)
+bool MetaInfoParser::parse(const string& data, MetaInfo& meta_info)
 {
     clear();
     file_data = data;
@@ -21,7 +20,7 @@ bool MetaInfoParser::parse(const ByteArray& data, MetaInfo& meta_info)
 void MetaInfoParser::clear()
 {
     file_data.clear();
-    info.clear();
+    info_data.clear();
     meta_dict.clear();
 }
 
@@ -36,7 +35,7 @@ bool MetaInfoParser::parseString(string& name)
     };
 
     int name_size = stoi(name_size_str);
-    name = file_data.substr(idx, name_size);
+    name = static_cast<string>(file_data).substr(idx, name_size);
     idx += name_size;
 
     return true;
@@ -84,11 +83,15 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
         }
 
         string key;
-        if(!parseString(key)) /*break*/return false;
+        if(!parseString(key)) return false;
 
         if (key == "info") {
+            size_t info_begin = idx;
             Dict info_dict;
             parseDictionry(info_dict);
+            size_t info_len = idx - info_begin;
+            info_data = file_data.substr(info_begin, info_len);
+
             if (file_data[idx] != 'e') return false;
             dict.insert(info_dict.begin(), info_dict.end());
 
@@ -103,7 +106,7 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
         } else if (parseInteger(number)) {
             dict.insert({key, to_string(number)});
         } else {
-            throw MetaInfoError("Unable to parse torrent file!");
+            return false;
         }
     } while (idx < file_data.size());
 
@@ -118,6 +121,7 @@ void MetaInfoParser::fillMetaInfo(const Dict& info_dict,
     meta_info.name = info_dict.at("name");
     meta_info.num_pieces = info_dict.at("pieces").size() / 20;
     meta_info.piece_length = stoi(info_dict.at("piece length"));
+    SHA1((uchar*)info_data.c_str(), info_data.length(), (uchar*)meta_info.info_hash.c_str());
 
     string sha1_str = info_dict.at("pieces");
     for (auto i = 0u; i < sha1_str.size(); i += SHA1_LENGTH) {

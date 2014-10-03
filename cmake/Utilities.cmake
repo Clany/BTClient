@@ -25,10 +25,15 @@ function(detect_compiler COMPILER REQUIRED_VERSION)
     else()
       message(FATAL_ERROR "Unknown required MSVC version: ${VERSION_STRING}")
     endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS" PARENT_SCOPE)
   endif()
 
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${REQUIRED_VERSION})
     message(FATAL_ERROR "${COMPILER_STRING} version need to be at leaset ${VERSION_STRING}")
+  endif()
+
+  if(NOT (${COMPILER} STREQUAL "MSVC") AND NOT (CMAKE_BUILD_TYPE STREQUAL "Debug"))
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3" PARENT_SCOPE)
   endif()
 endfunction()
 

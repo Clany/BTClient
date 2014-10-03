@@ -4,31 +4,26 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <stdexcept>
-#include "clany/clany_macros.h"
+#include "clany/clany_defs.h"
 
 _CLANY_BEGIN
-using ByteArray = string;
+const int SHA1_LENGTH = 20;
 
 struct MetaInfo {
-    string announce;
-    string name;
-    llong length;
-    int piece_length;
-    int num_pieces;
-    vector<string> sha1_sums;
-};
-
-class MetaInfoError : public runtime_error {
-public:
-    MetaInfoError(const string& msg) : runtime_error(msg) {}
+    string announce  = "";
+    string name      = "";
+    llong length     = 0;
+    int piece_length = 0;
+    int num_pieces   = 0;
+    string info_hash = string(20, '0');
+    vector<string> sha1_sums = {};
 };
 
 class MetaInfoParser {
     using Dict = map<string, string>;
 
 public:
-    bool parse(const ByteArray& data, MetaInfo& meta_info);
+    bool parse(const string& data, MetaInfo& meta_info);
     void clear();
 
     const Dict& getDictionary() { return meta_dict; }
@@ -39,12 +34,11 @@ private:
     bool parseList();
     bool parseDictionry(Dict& dict);
 
-    void fillMetaInfo(const Dict& info_dict,
-                      MetaInfo& meta_info);
+    void fillMetaInfo(const Dict& info_dict, MetaInfo& meta_info);
 
 private:
-    ByteArray file_data;
-    ByteArray info;
+    string file_data;
+    string info_data;
     size_t idx;
 
     Dict meta_dict;
