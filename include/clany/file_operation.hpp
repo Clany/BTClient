@@ -50,20 +50,14 @@ public:
 };
 
 
-inline string fileToString(const string& file_name)
+inline string readFile(const string& file_name)
 {
-    ifstream ifs(file_name);
+    ifstream ifs(file_name, ios::binary);
     if (!ifs.is_open()) {
         throw FileExcept("Could not open file " + file_name);
     }
 
     return string(ifsbuf_iter(ifs), ifsbuf_iter());
-}
-
-
-inline string readFile(const string& file_name)
-{
-    return fileToString(file_name);
 }
 
 
