@@ -154,25 +154,28 @@ private:
         string next_arg = curr_idx.first + 1 == arg_vec.size() ? "" : arg_vec[curr_idx.first + 1];
         if (curr_idx.second) {    // Long option
             option.erase(0, 2);
-            opt_arg = parseArg(option, next_arg, long_opt_map.at(
+            opt_arg = parseArg(option, next_arg, curr_idx.second, long_opt_map.at(
                                option.substr(0, option.find('='))).has_arg);
         } else {                  // Short option
             option.erase(0, 1);
-            opt_arg = parseArg(option, next_arg,
+            opt_arg = parseArg(option, next_arg, curr_idx.second, 
                                opt_map.at(option[0]).has_arg);
         }
         return !opt_arg.empty() && opt_arg == next_arg;
     }
 
-    string parseArg(const string& option, const string& next, int has_argument) const {
+    string parseArg(const string& option, const string& next, bool is_long_opt, int has_argument) const {
         // Option does not require an argument
         if (!has_argument) return string("\0", 1);
 
         size_t eq_sign_pos = option.find('=');
-        string arg = eq_sign_pos == string::npos ? option.substr(1) : option.substr(eq_sign_pos + 1);
-        string name = option.substr(0, eq_sign_pos);
+        if (eq_sign_pos != string::npos) return option.substr(eq_sign_pos + 1);
 
-        if (!arg.empty()) return arg;
+        if (!is_long_opt) {
+            string arg = option.substr(1);
+            if (!arg.empty()) return arg;
+        }
+
         if (!next.empty() && next[0] != '-') return next;
 
         // Option require an argument but not found

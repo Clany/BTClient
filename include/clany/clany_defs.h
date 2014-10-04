@@ -83,11 +83,14 @@
 #  define TRACE(expression) ((void)0)
 #endif
 
+#  undef NOEXCEPT
+#  undef CONSTEXPR
 #if !(__cplusplus >= 201103L)
-#  undef noexcept
-#  undef constexpr
-#  define noexcept throw()
-#  define constexpr const
+#  define NOEXCEPT throw()
+#  define CONSTEXPR const
+#else
+#  define NOEXCEPT noexcept
+#  define CONSTEXPR constexpr
 #endif
 
 using ushort = unsigned short;

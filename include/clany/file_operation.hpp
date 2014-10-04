@@ -63,7 +63,7 @@ inline string readFile(const string& file_name)
 inline ByteArray readBinaryFile(const string& file_name)
 {
     ifstream ifs(file_name, ios::binary);
-    if (!ifs.is_open()) {
+    if (!ifs) {
         throw FileExcept("Could not open file " + file_name);
     }
 
@@ -74,19 +74,30 @@ inline ByteArray readBinaryFile(const string& file_name)
 inline ifstream& gotoLine(ifstream& file, int num)
 {
     file.seekg(ios::beg);
-    for (int i = 0; i < num; ++i) {
+    for (int i = 0; i < num-1; ++i) {
         file.ignore(numeric_limits<streamsize>::max(), '\n');
     }
     return file;
 }
 
 
-inline string getLineStr(ifstream& file, int num)
+inline string getLineStr(const string& file_name, int num)
 {
-    gotoLine(file, num);
+    ifstream ifs(file_name);
+    if (!ifs) {
+        throw FileExcept("Could not open file " + file_name);
+    }
+
+    return getLineStr(ifs, num);
+}
+
+
+inline string getLineStr(ifstream& ifs, int num)
+{
+    gotoLine(ifs, num);
 
     string curr_line;
-    getline(file, curr_line);
+    getline(ifs, curr_line);
 
     return curr_line;
 }

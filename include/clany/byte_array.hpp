@@ -56,7 +56,9 @@ public:
         : Base(data.begin(), data.end()) {}
 
     // Allow implicit conversion
-    operator string() const { return string(begin(), end()); }
+    operator string() const  { return to_string(); }
+
+    string to_string() const { return string(begin(), end()); }
 
     ByteArray& append(const ByteArray& data) {
         insert(end(), data.begin(), data.end());
