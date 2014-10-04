@@ -14,6 +14,8 @@
 #  include <netdb.h>
 #  include <arpa/inet.h>
 #  define CLOSESOCKET close
+   using SOCKET = int;
+#  define INVALID_SOCKET -1
 #endif
 
 #define INIT_WINSOCK \
@@ -134,7 +136,7 @@ public:
         return true;
     }
 
-    int sock() const { return handle; }
+    SOCKET sock() const { return handle; }
 
     string peekAddress() const {
         auto _addr = addr.sin_addr;
@@ -143,6 +145,8 @@ public:
 
         return string(address);
     }
+
+    ushort port() const { return addr.sin_port; }
 
     SockState state() const { return sock_state; }
 
@@ -155,7 +159,7 @@ protected:
         sock_state = UnconnectedState;
     }
 
-    int handle;
+    SOCKET handle;
     SockAddrIN addr;
     SockState sock_state;
 };

@@ -38,7 +38,7 @@
 #  include <dirent.h>
 #endif
 
-#include "clany_defs.h"
+#include "byte_array.hpp"
 
 _CLANY_BEGIN
 typedef istreambuf_iterator<char> ifsbuf_iter;
@@ -52,12 +52,22 @@ public:
 
 inline string readFile(const string& file_name)
 {
-    ifstream ifs(file_name, ios::binary);
+    ifstream ifs(file_name);
     if (!ifs.is_open()) {
         throw FileExcept("Could not open file " + file_name);
     }
 
     return string(ifsbuf_iter(ifs), ifsbuf_iter());
+}
+
+inline ByteArray readBinaryFile(const string& file_name)
+{
+    ifstream ifs(file_name, ios::binary);
+    if (!ifs.is_open()) {
+        throw FileExcept("Could not open file " + file_name);
+    }
+
+    return ByteArray(ifsbuf_iter(ifs), ifsbuf_iter());
 }
 
 

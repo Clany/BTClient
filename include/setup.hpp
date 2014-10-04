@@ -148,7 +148,7 @@ inline void printTorrentFileInfo(const MetaInfo& info)
          << setw(12) << "Info hash"    << ": " << printHash(info.info_hash) << endl;
 
     cout << "Pieces:" << endl;
-    for (const auto& sha1 : info.sha1_sums) {
+    for (const auto& sha1 : info.sha1_vec) {
         cout << printHash(sha1) << endl;
     }
     printLineSep();

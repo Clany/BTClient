@@ -4,7 +4,7 @@
 using namespace std;
 using namespace clany;
 
-bool MetaInfoParser::parse(const string& data, MetaInfo& meta_info)
+bool MetaInfoParser::parse(const ByteArray& data, MetaInfo& meta_info)
 {
     clear();
     file_data = data;
@@ -24,19 +24,19 @@ void MetaInfoParser::clear()
     meta_dict.clear();
 }
 
-bool MetaInfoParser::parseString(string& name)
+bool MetaInfoParser::parseString(string& str)
 {
     char c = file_data[idx];
     if (c < '0' || c > '9') return false;
 
-    string name_size_str;
+    string size_str;
     while ((c = file_data[idx++]) != ':') {
-        name_size_str.push_back(c);
+        size_str.push_back(c);
     };
 
-    int name_size = stoi(name_size_str);
-    name = static_cast<string>(file_data).substr(idx, name_size);
-    idx += name_size;
+    int size = stoi(size_str);
+    str = file_data.sub(idx, size);
+    idx += size;
 
     return true;
 }
@@ -58,9 +58,7 @@ bool MetaInfoParser::parseInteger(llong& number)
         if (c < '0' || c > '9') return false;
         num_str.push_back(c);
     };
-
-    number = stoll(num_str);
-    if (is_negative) number = -number;
+    number = is_negative ? -stoll(num_str) : stoll(num_str);
 
     return true;
 }
@@ -90,7 +88,7 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
             Dict info_dict;
             parseDictionry(info_dict);
             size_t info_len = idx - info_begin;
-            info_data = file_data.substr(info_begin, info_len);
+            info_data = file_data.sub(info_begin, info_len);
 
             if (file_data[idx] != 'e') return false;
             dict.insert(info_dict.begin(), info_dict.end());
@@ -100,7 +98,6 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
 
         string name;
         llong  number;
-
         if (parseString(name)) {
             dict.insert({key, name});
         } else if (parseInteger(number)) {
@@ -121,10 +118,10 @@ void MetaInfoParser::fillMetaInfo(const Dict& info_dict,
     meta_info.name = info_dict.at("name");
     meta_info.num_pieces = info_dict.at("pieces").size() / 20;
     meta_info.piece_length = stoi(info_dict.at("piece length"));
-    SHA1((uchar*)info_data.c_str(), info_data.length(), (uchar*)meta_info.info_hash.c_str());
+    SHA1((uchar*)info_data.data(), info_data.size(), (uchar*)meta_info.info_hash.data());
 
-    string sha1_str = info_dict.at("pieces");
-    for (auto i = 0u; i < sha1_str.size(); i += SHA1_LENGTH) {
-        meta_info.sha1_sums.push_back(sha1_str.substr(i, SHA1_LENGTH));
+    ByteArray sha1 = info_dict.at("pieces");
+    for (auto i = 0u; i < sha1.size(); i += SHA1_LENGTH) {
+        meta_info.sha1_vec.push_back(sha1.sub(i, SHA1_LENGTH));
     }
 }

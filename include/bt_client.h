@@ -1,22 +1,12 @@
 #ifndef BT_CLIENT_H
 #define BT_CLIENT_H
 
-#include "socket.hpp"
-#include "metainfo.h"
 #include <tbb/tbb.h>
+#include "socket.hpp"
+#include "tcp_server.hpp"
+#include "metainfo.h"
 
 _CLANY_BEGIN
-// struct ByteArray : vector<char> {
-//    ByteArray() = default;
-//    ByteArray(const string& str)
-//        : vector<char>(str.begin(), str.end()) {}
-//
-//    operator string() const {
-//        return string(begin(), end());
-//    }
-//};
-using ByteArray = string;
-
 class BTClient {
 private:
     // Preallocated temporary file on disk
@@ -38,11 +28,15 @@ private:
     bool loadFile(const string& file_name);
 
     // Return true if SHA1 value of piece is correct, also update pieces status
-    bool checkPiece(const string& piece, int idx);
+    bool checkPiece(const ByteArray& piece, int idx);
 
-    void download();
+    void download(tbb::atomic<bool>& running);
+    void downloadChild();
+    void upload(tbb::atomic<bool>& running);
+    void uploadChild();
 
-    void upload();
+    bool handShake(TCPSocket::Ptr client_sock);
+    bool hasIncomingData(TCPSocket::Ptr client_sock);
 
 public:
     using Ptr = shared_ptr<BTClient>;
@@ -56,7 +50,8 @@ public:
     void run();
 
 private:
-    TCPSocket sock;
+    TCPSocket client;
+    TCPServer server;
     uint pid;
 
     MetaInfo meta_info;
@@ -67,7 +62,11 @@ private:
     string log_name;
 
     tbb::task_group dnload_tasks;
+    vector<tbb::atomic<int>> dlt_status;
     tbb::task_group upload_tasks;
+    vector<tbb::atomic<int>> upt_status;
+    size_t max_dnload_size = 4;
+    size_t max_upload_size = 4;
 };
 _CLANY_END
 
