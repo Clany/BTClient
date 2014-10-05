@@ -37,7 +37,6 @@ set(SRC_LIST
   src/main.cpp
   src/metainfo.cpp
   src/bt_client.cpp
-  src/bt_server.cpp
 )
 
 set(HEADER_LIST
@@ -45,7 +44,6 @@ set(HEADER_LIST
   include/socket.hpp
   include/tcp_server.hpp
   include/bt_client.h
-  include/bt_server.h
   include/metainfo.h
 )
 
