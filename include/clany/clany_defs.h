@@ -42,7 +42,9 @@
 #undef TRACE
 
 #ifdef _MSC_VER
-#  include <crtdbg.h>
+#  define NOMINMAX
+#  define _WINSOCKAPI_
+#  include <windows.h>
 #  define ASSERT _ASSERTE
 #else
 #  include <cassert>
@@ -63,9 +65,6 @@
      stringstream ss; \
      ss << "Debug: " << __FILE__ << "(" << __LINE__ << "): " << buffer << endl
 #  ifdef _MSC_VER
-#    define NOMINMAX
-#    define _WINSOCKAPI_
-#    include <windows.h>
 #    define TRACE(format, ...) { \
        _TRACE((format), __VA_ARGS__); \
        OutputDebugString(ss.str().c_str()); \

@@ -81,17 +81,6 @@ inline ifstream& gotoLine(ifstream& file, int num)
 }
 
 
-inline string getLineStr(const string& file_name, int num)
-{
-    ifstream ifs(file_name);
-    if (!ifs) {
-        throw FileExcept("Could not open file " + file_name);
-    }
-
-    return getLineStr(ifs, num);
-}
-
-
 inline string getLineStr(ifstream& ifs, int num)
 {
     gotoLine(ifs, num);
@@ -100,6 +89,17 @@ inline string getLineStr(ifstream& ifs, int num)
     getline(ifs, curr_line);
 
     return curr_line;
+}
+
+
+inline string getLineStr(const string& file_name, int num)
+{
+    ifstream ifs(file_name);
+    if (!ifs) {
+        throw FileExcept("Could not open file " + file_name);
+    }
+
+    return getLineStr(ifs, num);
 }
 
 

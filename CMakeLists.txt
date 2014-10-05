@@ -12,6 +12,7 @@ find_compiler(
   Clang 3.2  "-std=c++11 -Wall"
   MSVC  2013 "/W4"
 )
+add_definitions(-DTBB_IMPLEMENT_CPP0X=1)
 
 option(USE_MY_PATH "Use my own default library path" OFF)
 if(USE_MY_PATH)
@@ -21,7 +22,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 if(WIN32)
-  add_definitions("-D_WIN32_WINNT=0x602")
+  add_definitions(-D_WIN32_WINNT=0x602)
   set(WINSOCK2_LIB "ws2_32")
 endif()
 

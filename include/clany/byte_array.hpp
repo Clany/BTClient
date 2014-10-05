@@ -98,6 +98,11 @@ inline bool operator==(const ByteArray& left, const ByteArray& right)
     return left.size() == right.size() &&
            equal(left.begin(), left.end(), right.begin());
 }
+
+inline bool operator!=(const ByteArray& left, const ByteArray& right)
+{
+    return !(left == right);
+}
 _CLANY_END
 
 

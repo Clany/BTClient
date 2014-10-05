@@ -1,7 +1,9 @@
 #ifndef BT_CLIENT_H
 #define BT_CLIENT_H
 
+#include "clany/clany_defs.h"
 #include <tbb/tbb.h>
+#include <tbb/compat/thread>
 #include "socket.hpp"
 #include "tcp_server.hpp"
 #include "metainfo.h"
@@ -35,8 +37,10 @@ private:
     void upload(tbb::atomic<bool>& running);
     void uploadChild();
 
-    bool handShake(TCPSocket::Ptr client_sock);
-    bool hasIncomingData(TCPSocket::Ptr client_sock);
+    bool handShake(TCPSocket& client_sock, bool is_initiator = true);
+
+    bool hasIncomingData(TCPSocket& client_sock) const;
+    void recvMsg(TCPSocket& client_sock, string& buffer) const;
 
 public:
     using Ptr = shared_ptr<BTClient>;
