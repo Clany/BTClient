@@ -8,6 +8,7 @@ To do:
           Maintaining a peer list
           Transfer multiple pieces at the same time, calculate SHA-1 of downloaded piece (TBB, C++11 thread)
           Error handling
+          Drop connection if didn't receive any message from initiator after 2s
 
  - Other: Configure connection state (choked and unchoked)
           Upload and download at the same time

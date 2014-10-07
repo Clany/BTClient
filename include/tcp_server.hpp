@@ -8,17 +8,20 @@ class TCPServer {
 public:
     TCPServer(int num_connections = 1) : max_queue_sz(num_connections) {}
 
-    TCPSocket::Ptr nextPendingConnection() {
+    virtual TCPSocket::Ptr nextPendingConnection() const {
         SockAddrIN client_addr;
         socklen_t  addr_sz = sizeof(client_addr);
         memset(&client_addr, 0, addr_sz);
-        if (hasPendingConnections())
-            return make_shared<TCPSocket>(::accept(tcp_socket.sock(), (SockAddr*)&client_addr, &addr_sz),
-                                          client_addr, AbstractSocket::ConnectedState);
+        if (hasPendingConnections()) {
+            auto sock = ::accept(tcp_socket.sock(), (SockAddr*)&client_addr, &addr_sz);
+            return TCPSocket::Ptr(new TCPSocket(sock, client_addr,
+                                                TCPSocket::ConnectedState));
+        }
+
         return nullptr;
     }
 
-    bool hasPendingConnections() {
+    virtual bool hasPendingConnections() const {
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(tcp_socket.sock(), &read_fds);
@@ -53,8 +56,6 @@ public:
         return tcp_socket.state() == TCPSocket::ListeningState;
     }
 
-    ushort port() { return tcp_socket.port(); }
-
     void close() {
         tcp_socket.close();
     }
@@ -63,7 +64,7 @@ public:
         max_queue_sz = num_connections;
     }
 
-private:
+protected:
     TCPSocket tcp_socket;
     int max_queue_sz;
 };

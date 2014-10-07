@@ -37,6 +37,7 @@ set(SRC_LIST
   src/main.cpp
   src/metainfo.cpp
   src/bt_client.cpp
+  src/peer_client.cpp
 )
 
 set(HEADER_LIST
@@ -45,6 +46,7 @@ set(HEADER_LIST
   include/tcp_server.hpp
   include/bt_client.h
   include/metainfo.h
+  include/peer_client.h
 )
 
 add_executable(bt_client ${SRC_LIST} ${HEADER_LIST})

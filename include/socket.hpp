@@ -58,12 +58,15 @@ public:
        ListeningState   = -1
     };
 
+    using Ptr = shared_ptr<AbstractSocket>;
+
     AbstractSocket(int domain, int type, int protocal)
       : handle(socket(domain, type, protocal)), sock_state(UnconnectedState) {}
     AbstractSocket(int sock, SockAddrIN address, SockState state)
       : handle(sock), addr(address), sock_state(state) {}
 
     AbstractSocket(const AbstractSocket&) = delete;
+    AbstractSocket& operator=(const AbstractSocket&) = delete;
 
     ~AbstractSocket() { if (sock_state != UnconnectedState) ::CLOSESOCKET(handle); }
 
