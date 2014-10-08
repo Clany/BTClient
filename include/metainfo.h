@@ -18,7 +18,7 @@ struct MetaInfo {
 };
 
 class MetaInfoParser {
-    using Dict = map<string, ByteArray>;
+    using Dict = map<string, string>;
 
 public:
     bool parse(const ByteArray& data, MetaInfo& meta_info);

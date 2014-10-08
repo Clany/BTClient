@@ -132,7 +132,11 @@ public:
     bool isValid() const { return handle >= 0; }
 
     virtual bool write(const string& message) const {
-        if (::send(handle, message.c_str(), message.size(), 0) < 0) {
+        return write(message.c_str(), message.length());
+    }
+
+    virtual bool write(const char* message, size_t n) const {
+        if (::send(handle, message, n, 0) < 0) {
             cerr << "Fail to send the message!" << endl;
             return false;
         }

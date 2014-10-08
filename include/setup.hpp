@@ -147,10 +147,12 @@ inline void printTorrentFileInfo(const MetaInfo& info)
          << setw(12) << "Num pieces"   << ": " << info.num_pieces           << endl
          << setw(12) << "Info hash"    << ": " << printHash(info.info_hash) << endl;
 
+#ifndef NDEBUG
     cout << "Pieces:" << endl;
     for (const auto& sha1 : info.sha1_vec) {
         cout << printHash(sha1) << endl;
     }
+#endif
     printLineSep();
 }
 _CLANY_END

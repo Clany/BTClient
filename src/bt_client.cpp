@@ -1,5 +1,6 @@
 #include <openssl/sha.h>
 #include <clany/file_operation.hpp>
+#include <clany/timer.hpp>
 #include "bt_client.h"
 
 #define ATOMIC_PRINT(format, ...) { \
@@ -23,6 +24,7 @@ const ByteArray DEFAULT_CHUNK(DEFAULT_CHUNK_SIZE);
 
 tbb::mutex print_mtx;
 tbb::mutex connection_mtx;
+tbb::mutex file_mtx;
 } // Unnamed namespace
 
 bool BTClient::TmpFile::create(const string& file_name, llong file_size)
@@ -52,6 +54,17 @@ bool BTClient::TmpFile::write(size_t idx, const ByteArray& data) const
     return true;
 }
 
+bool BTClient::TmpFile::read(size_t idx, size_t length, ByteArray& data) const
+{
+    ifstream ifs(fname, ios::binary);
+    if (!ifs) return false;
+
+    ifs.seekg(idx);
+    ifs.read(data.data(), length);
+
+    return true;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // BTClient interface
 bool BTClient::setTorrent(const string& torrent_name, const string& save_file_name)
@@ -59,7 +72,7 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
     //////////////////////////////////////////////////////////////////////////////////////////
     // Hard code parameters
     peer_list.push_back({150, "192.168.1.100", 6767, false});
-    max_connections = 4;
+    max_connections = 8;
     //////////////////////////////////////////////////////////////////////////////////////////
 
     if (!download_file.empty()) {
@@ -71,13 +84,15 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
     if (!parser.parse(readBinaryFile(torrent_name), meta_info)) return false;
     save_name = save_file_name;
 
-    // Check if we have already downloaded the file
+    // Initialize piece status (bitfield), load (partial)downloaded file if exist
+    bit_field.resize(meta_info.num_pieces);
     pieces_status.resize(meta_info.num_pieces);
     fill(pieces_status.begin(), pieces_status.end(), -1);
     auto file_name = save_name.empty() ? meta_info.name : save_name;
     if (!loadFile(file_name)) {
         download_file.create(file_name, meta_info.length);
     }
+    DBGVAR(cout, bit_field);
 
     return true;
 }
@@ -89,22 +104,23 @@ void BTClient::run()
     atomic<bool> running[4];
     fill(begin(running), end(running), true);
 
-    task_group search_task;
-    search_task.run(
-        [&]() { listen(running[0]); }
+    task_group search_peers;
+//     search_peers.run(
+//         [this, &running]() { initiate(running[1]); }
+//     );
+    search_peers.run(
+        [this, &running]() { listen(running[0]); }
     );
 
-    search_task.run(
-        [&]() { initiate(running[1]); }
-    );
-
-    upload_tasks.run(
-        [&]() { upload(running[2]); }
-    );
-
-    dnload_tasks.run(
-        [&]() { download(running[3]); }
-    );
+    // Sleep for 1s, then initialize download/upload tasks
+    this_thread::sleep_for(tick_count::interval_t(1.0));
+    task_group down_up_tasks;
+//     down_up_tasks.run(
+//         [this, &running]() { download(running[2]); }
+//     );
+//     down_up_tasks.run(
+//         [this, &running]() { upload(running[3]); }
+//     );
 
     string input_str;
     while(getline(cin, input_str)) {
@@ -113,9 +129,8 @@ void BTClient::run()
         if (input_str.size() == 1 && c == 'q' || c == 'Q') {
             fill(begin(running), end(running), false);
             // Wait for all tasks to terminate
-            upload_tasks.wait();
-            dnload_tasks.wait();
-            search_task.wait();
+            search_peers.wait();
+            down_up_tasks.wait();
             break;
         } else {
             ATOMIC_PRINT("Invalid input\n");
@@ -156,7 +171,7 @@ void BTClient::listen(atm_bool& running)
         if (peer_client && handShake(*peer_client, false)) {
             ATOMIC_PRINT("Accept connection from %s\n",
                          peer_client->peekAddress().c_str());
-            peer_client->sendAvailPieces(getBitField());
+            peer_client->sendAvailPieces(bit_field);
             addPeerClient(peer_client);
         }
     }
@@ -165,9 +180,7 @@ void BTClient::listen(atm_bool& running)
 void BTClient::initiate(atm_bool& running)
 {
     while (running) {
-        // Sleep for 0.3s, prevent from using 100% CPU
-        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
-        if (connection_list.size() > max_connections) continue;
+        if (connection_list.size() >= max_connections) continue;
 
         // Iterate peer list to find available connection
         for (auto& peer : peer_list) {
@@ -183,11 +196,13 @@ void BTClient::initiate(atm_bool& running)
                 handShake(*peer_client)) {
                 ATOMIC_PRINT("Establish connection from %s:%d\n",
                              peer.address.c_str(), peer.port);
-                peer_client->sendAvailPieces(getBitField());
+                peer_client->sendAvailPieces(bit_field);
                 addPeerClient(peer_client);
                 peer.is_connected = true;
             }
         }
+        // Re-scan every 30 seconds
+        this_thread::sleep_for(tick_count::interval_t(30.0));
     }
 }
 
@@ -208,6 +223,15 @@ void BTClient::download(atm_bool& running)
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        if (connection_list.empty()) continue;
+
+#ifndef NDEBUG
+        for_each(connection_list.begin(), connection_list.end(),
+#else
+        parallel_for_each(connection_list.begin(), connection_list.end(),
+#endif
+                          [this](PeerClient::Ptr connection) {
+        });
     }
 }
 
@@ -218,10 +242,31 @@ void BTClient::upload(atm_bool& running)
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
         if (connection_list.empty()) continue;
 
-        for (const auto& connection : connection_list) {
+#ifndef NDEBUG
+        for_each(connection_list.begin(), connection_list.end(),
+#else
+        parallel_for_each(connection_list.begin(), connection_list.end(),
+#endif
+                 [this](PeerClient::Ptr connection) {
             string msg;
-            recvMsg(*connection, msg);
-        }
+            recvMsg(*connection, msg, string::npos, 0);
+            if (msg.empty()) return;
+
+            int msg_id;
+            string payload;
+            connection->parseMsg(msg, msg_id, payload);
+            if (msg_id == PeerClient::REQUEST && payload.size() == 12) {
+                auto blk_header = reinterpret_cast<const int*>(payload.c_str());
+                int piece_idx = blk_header[0];
+                int offset    = blk_header[1];
+                int length    = blk_header[2];
+                if (bit_field[piece_idx]) {
+                    connection->sendBlock(piece_idx, offset, getBlock(blk_header));
+                } else {
+                    connection->cancelRequest(piece_idx, offset, length);
+                }
+            }
+        });
     }
 }
 
@@ -261,7 +306,7 @@ bool BTClient::handShake(TCPSocket& client_sock, bool is_initiator)
         if (receiveMessge(buffer)) {
             // Extract info hash
             string recv_sha1 = buffer.substr(28, 20);
-            if (recv_sha1 != meta_info.info_hash) return false;
+            if (recv_sha1 != meta_info.info_hash.to_string()) return false;
         };
     }
     else {
@@ -270,7 +315,7 @@ bool BTClient::handShake(TCPSocket& client_sock, bool is_initiator)
         // cout << buffer << endl;
         // Extract info hash
         string recv_sha1 = buffer.substr(28, 20);
-        if (recv_sha1 == meta_info.info_hash) {
+        if (recv_sha1 == meta_info.info_hash.to_string()) {
             if (!sendMessage()) return false;
         }
     }
@@ -288,19 +333,29 @@ bool BTClient::hasIncomingData(TCPSocket& client_sock) const
     return select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
 }
 
-void BTClient::recvMsg(TCPSocket& client_sock, string& buffer) const
+void BTClient::recvMsg(TCPSocket& client_sock, string& buffer,
+                       size_t n, double time_out) const
 {
+    int count = 0;
+    int max_count = time_out == 0 ?
+                    1 : static_cast<int>(ceil(time_out / SLEEP_INTERVAL));
     buffer.resize(FILE_SIZE_LIMITE);
+#ifndef NDEBUG
+    ScopeTimer timer;
+#endif
     for (;;) {
         // Wait for incoming handshake message
+        if (++count > max_count) break;
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
         if (!hasIncomingData(client_sock)) continue;
 
-        int num_bytes = 0, idx = 0;
+        int num_bytes = 0;
+        size_t idx = 0;
         while (hasIncomingData(client_sock)) {
             num_bytes = ::recv(client_sock.sock(), &buffer[idx], BUF_LEN, 0);
             if (num_bytes <= 0) break;
             idx += num_bytes;
+            if (idx >= n) break;
         }
 
         buffer.resize(idx);
@@ -308,10 +363,17 @@ void BTClient::recvMsg(TCPSocket& client_sock, string& buffer) const
     }
 }
 
-auto BTClient::getBitField() const -> ByteArray
+ByteArray BTClient::getBlock(int piece, int offset, int length) const
 {
-    ByteArray bitfield;
-    return bitfield;
+    mutex::scoped_lock(file_mtx);
+    ByteArray data;
+    download_file.read(piece*meta_info.piece_length + offset, length, data);
+    return data;
+}
+
+ByteArray BTClient::getBlock(const int* block_header) const
+{
+    return getBlock(block_header[0], block_header[1], block_header[2]);
 }
 
 bool BTClient::loadFile(const string& file_name)
@@ -328,20 +390,23 @@ bool BTClient::loadFile(const string& file_name)
     int idx = 0;
     while (++idx < meta_info.num_pieces) {
         ifs.read(piece.data(), piece.size());
-        checkPiece(piece, idx - 1);
+        validatePiece(piece, idx - 1);
     };
     // Last piece
     piece.resize(meta_info.length % meta_info.piece_length);
     ifs.read(piece.data(), piece.size());
-    checkPiece(piece, idx - 1);
+    validatePiece(piece, idx - 1);
 
     return true;
 }
 
-bool BTClient::checkPiece(const ByteArray& piece, int idx)
+bool BTClient::validatePiece(const ByteArray& piece, int idx)
 {
     ByteArray sha1(20);
     SHA1((uchar*)piece.data(), piece.size(), (uchar*)sha1.data());
-    if (sha1 == meta_info.sha1_vec[idx]) pieces_status[idx] = 1;
+    if (sha1 == meta_info.sha1_vec[idx]) {
+        pieces_status[idx] = 1;
+        bit_field[idx]     = 1;
+    }
     return pieces_status[idx] == 1;
 }

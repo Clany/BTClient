@@ -1,3 +1,4 @@
+#include <clany/dyn_bitset.hpp>
 #include "bt_client.h"
 #include "setup.hpp"
 

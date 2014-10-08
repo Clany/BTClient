@@ -47,12 +47,10 @@ public:
         : Base(first, last) {}
 #endif
 
-    // Allow implicit conversion
-    ByteArray(const char* data, int size = -1)
+    explicit ByteArray(const char* data, int size = -1)
         : Base(data, data + (size < 0 ? strlen(data) : size)) {}
 
-    // Allow implicit conversion
-    ByteArray(const string& data)
+    explicit ByteArray(const string& data)
         : Base(data.begin(), data.end()) {}
 
     // Allow implicit conversion
@@ -102,6 +100,12 @@ inline bool operator==(const ByteArray& left, const ByteArray& right)
 inline bool operator!=(const ByteArray& left, const ByteArray& right)
 {
     return !(left == right);
+}
+
+inline ostream& operator<<(ostream& os, const ByteArray& byte_arr)
+{
+    os << byte_arr.to_string();
+    return os;
 }
 _CLANY_END
 

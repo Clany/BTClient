@@ -11,7 +11,6 @@
 
 _CLANY_BEGIN
 class BTClient : public TCPServer {
-private:
     using atm_bool = tbb::atomic<bool>;
     using atm_int  = tbb::atomic<int>;
 
@@ -22,6 +21,7 @@ private:
 
         bool create(const string& file_name, llong file_size);
         bool write(size_t idx, const ByteArray& data) const;
+        bool read(size_t idx, size_t length, ByteArray& data) const;
 
         llong size() const { return fsize; }
         bool empty() const { return fsize == 0; }
@@ -44,14 +44,16 @@ private:
 
     bool handShake(TCPSocket& client_sock, bool is_initiator = true);
     bool hasIncomingData(TCPSocket& client_sock) const;
-    void recvMsg(TCPSocket& client_sock, string& buffer) const;
-    auto getBitField() const -> ByteArray;
+    void recvMsg(TCPSocket& client_sock, string& buffer,
+                 size_t n = string::npos, double time_out = 3.0) const;
+    auto getBlock(int piece, int offset, int length) const -> ByteArray;
+    auto getBlock(const int* block_header) const -> ByteArray;
 
     // Load existing (partial)downloaded file
     bool loadFile(const string& file_name);
 
-    // Return true if SHA1 value of piece is correct, also update pieces status
-    bool checkPiece(const ByteArray& piece, int idx);
+    // Return true if SHA1 value of piece is correct, update pieces accordingly
+    bool validatePiece(const ByteArray& piece, int idx);
 
 public:
     using Ptr = shared_ptr<BTClient>;
@@ -74,14 +76,11 @@ private:
     MetaInfo meta_info;
     TmpFile download_file;
     vector<atm_int> pieces_status;
+    BitField bit_field;
 
     string save_name;
     string log_name;
 
-    tbb::task_group dnload_tasks;
-    vector<atm_int> dlt_status;
-    tbb::task_group upload_tasks;
-    vector<atm_int> upt_status;
     size_t max_dnload_size = 4;
     size_t max_upload_size = 4;
 };

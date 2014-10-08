@@ -113,14 +113,14 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
 void MetaInfoParser::fillMetaInfo(const Dict& info_dict,
                                   MetaInfo& meta_info)
 {
-    meta_info.announce = info_dict.at("announce");
-    meta_info.length = stoll(info_dict.at("length"));
-    meta_info.name = info_dict.at("name");
-    meta_info.num_pieces = info_dict.at("pieces").size() / 20;
+    meta_info.announce     = info_dict.at("announce");
+    meta_info.length       = stoll(info_dict.at("length"));
+    meta_info.name         = info_dict.at("name");
+    meta_info.num_pieces   = info_dict.at("pieces").size() / 20;
     meta_info.piece_length = stoi(info_dict.at("piece length"));
     SHA1((uchar*)info_data.data(), info_data.size(), (uchar*)meta_info.info_hash.data());
 
-    ByteArray sha1 = info_dict.at("pieces");
+    ByteArray sha1(info_dict.at("pieces"));
     for (auto i = 0u; i < sha1.size(); i += SHA1_LENGTH) {
         meta_info.sha1_vec.push_back(sha1.sub(i, SHA1_LENGTH));
     }
