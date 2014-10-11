@@ -44,8 +44,32 @@ public:
           bit_size(n),
           offset(BYTESIZE*bit_field.size() - n), 
           last_size(n - BYTESIZE*(bit_field.size() - 1)) {}
-    DynBitset(size_t n, const string& val)
-        : DynBitset(n) {
+    DynBitset(size_t n, const string& val) {
+        fromString(n, val);
+    }
+
+    DynBitset(size_t n, const ByteArray& data) {
+        fromByteArray(n, data);
+    }
+
+    // Conversion from/to byte array and string
+    void fromByteArray(size_t n, const ByteArray& data) {
+        bit_field.resize((n + BYTESIZE - 1) / BYTESIZE);
+        bit_size  = n;
+        offset    = BYTESIZE*bit_field.size() - n;
+        last_size = n - BYTESIZE*(bit_field.size() - 1);
+
+        for (auto idx = 0u; idx < bit_field.size(); ++idx) {
+            bit_field[idx] = static_cast<ullong>(data[idx]);
+        }
+    }
+
+    void fromString(size_t n, const string& val) {
+        bit_field.resize((n + BYTESIZE - 1) / BYTESIZE);
+        bit_size  = n;
+        offset    = BYTESIZE*bit_field.size() - n;
+        last_size = n - BYTESIZE*(bit_field.size() - 1);
+
         size_t idx = 0;
         auto byte = bit_field.begin();
         do {
@@ -54,14 +78,6 @@ public:
         bit_field.back() <<= BYTESIZE - last_size;
     }
 
-    DynBitset(size_t n, const ByteArray& data)
-        : DynBitset(n) {
-        for (auto idx = 0u; idx < bit_field.size(); ++idx) {
-            bit_field[idx] = static_cast<ullong>(data[idx]);
-        }
-    }
-
-    // Conversion to byte array and string
     auto toByteArray() const -> ByteArray {
         ByteArray data(bit_field.size());
         for (auto i = 0u; i < bit_field.size(); ++i) {
@@ -70,7 +86,7 @@ public:
         return data;
     }
 
-    string to_string() const {
+    auto to_string() const -> string {
         string str;
         for (const auto& byte : bit_field) {
             str += byte.to_string();

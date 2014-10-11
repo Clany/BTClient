@@ -35,19 +35,29 @@ class BTClient : public TCPServer {
     using TCPServer::listen;
     void listen(atm_bool& running);
     void initiate(atm_bool& running);
-    void addPeerClient(PeerClient::Ptr peer);
-    void removePeerClient(PeerClient::Ptr peer);
+    void addPeerClient(PeerClient::Ptr peer_client);
+    void removePeerClient(PeerClient::Ptr peer_client);
+    void addPeerInfo(const Peer& peer);
+    void removePeerInfo(const Peer& peer);
 
-    // Mange download and upload tasks
-    void download(atm_bool& running);
-    void upload(atm_bool& running);
+    // Mange torrent task
+    void download(atm_bool& running, const vector<int>& idx_vec);
+    void handleMsg(atm_bool& running);
 
-    bool handShake(TCPSocket& client_sock, bool is_initiator = true);
-    bool hasIncomingData(TCPSocket& client_sock) const;
-    void recvMsg(TCPSocket& client_sock, string& buffer,
-                 size_t n = string::npos, double time_out = 3.0) const;
+    bool handShake(PeerClient& peer_client, bool is_initiator = true);
+    bool hasIncomingData(const TCPSocket& client_sock) const;
+
+    bool recvMsg(const TCPSocket& client_sock, char* buffer,
+                 size_t msg_len = string::npos, double time_out = 3.0) const;
+    bool recvMsg(const TCPSocket& client_sock, ByteArray& buffer,
+                 size_t msg_len = string::npos, double time_out = 3.0) const;
+    bool recvMsg(const TCPSocket& client_sock, string& buffer,
+                 size_t msg_len = string::npos, double time_out = 3.0) const;
+
     auto getBlock(int piece, int offset, int length) const -> ByteArray;
     auto getBlock(const int* block_header) const -> ByteArray;
+    void sendBlock(const PeerClient& peer_client, const ByteArray& request_msg) const;
+    void writeBlock(const ByteArray& block_msg);
 
     // Load existing (partial)downloaded file
     bool loadFile(const string& file_name);
@@ -58,9 +68,10 @@ class BTClient : public TCPServer {
 public:
     using Ptr = shared_ptr<BTClient>;
 
-    BTClient(uint peer_id) : pid(peer_id) {};
+    BTClient(const string& peer_id) : pid(peer_id) {};
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
+    void addPeerAddr(const string& address, ushort port);
 
     auto getMetaInfo() -> const MetaInfo& { return meta_info; }
 
@@ -71,18 +82,15 @@ private:
     list<PeerClient::Ptr> connection_list;
     size_t max_connections;
 
-    uint pid;
+    string pid;
 
     MetaInfo meta_info;
     TmpFile download_file;
-    vector<atm_int> pieces_status;
+    vector<int> pieces_status;
     BitField bit_field;
 
     string save_name;
     string log_name;
-
-    size_t max_dnload_size = 4;
-    size_t max_upload_size = 4;
 };
 _CLANY_END
 

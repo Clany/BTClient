@@ -13,7 +13,7 @@ struct CmdArgs {
     string save_file    = "";   // filename to save to
     string log_file     = "";   // log file name
     string torrent_file = "";   // torrent file name
-    uint   id           = 0;    // this bt_clients id
+    string id           = "";    // this bt_clients id
 //     FILE * f_save;
 //     peer_t * peers[MAX_CONNECTIONS]; // array of peer_t pointers
 //     int sockets[MAX_CONNECTIONS]; //Array of possible sockets
@@ -50,7 +50,6 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
 //     //default lag file
 //     strncpy(bt_args.log_file, "bt-client.log", FILE_NAME_MAX);
 
-    bt_args.id = 0;
     CmdLineParser cmd_parser(argc, argv, "hp:s:l:vI:");
     int ch = 0; //ch for each flag
     while ((ch = cmd_parser.get()) != -1) {
@@ -83,7 +82,7 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
 //             __parse_peer(bt_args.peers[n_peers], optarg);
             break;
         case 'I':
-            bt_args.id = cmd_parser.getArg<int>();
+            bt_args.id = cmd_parser.getArg<string>();
             break;
         case ':':
             cerr << "ERROR: Invalid option, missing argument!" << endl;

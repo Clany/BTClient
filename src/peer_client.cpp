@@ -26,12 +26,12 @@ struct BlockHeader {
 };
 } // Unnamed namespace
 
-void PeerClient::sendPieceUpdate(int/* piece*/)
+void PeerClient::sendPieceUpdate(int/* piece*/) const
 {
     // TODO
 }
 
-void PeerClient::sendAvailPieces(const BitField& bit_field)
+void PeerClient::sendAvailPieces(const BitField& bit_field) const
 {
     // Do no send if we have no piece
     if (bit_field.none()) return;
@@ -42,7 +42,7 @@ void PeerClient::sendAvailPieces(const BitField& bit_field)
     write(msg);
 }
 
-void PeerClient::requestBlock(int piece, int offset, int length)
+void PeerClient::requestBlock(int piece, int offset, int length) const
 {
     MsgHeader   msg_header {13, REQUEST};
     BlockHeader blk_header {piece, offset, length};
@@ -50,7 +50,7 @@ void PeerClient::requestBlock(int piece, int offset, int length)
     write(msg);
 }
 
-void PeerClient::cancelRequest(int piece, int offset, int length)
+void PeerClient::cancelRequest(int piece, int offset, int length) const
 {
     MsgHeader   msg_header {13, CANCEL};
     BlockHeader blk_header {piece, offset, length};
@@ -58,7 +58,7 @@ void PeerClient::cancelRequest(int piece, int offset, int length)
     write(msg);
 }
 
-void PeerClient::sendBlock(int piece, int offset, const ByteArray& data)
+void PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
 {
     string payload = data;
     MsgHeader   msg_header {9 + payload.length(), PIECE};
@@ -67,14 +67,13 @@ void PeerClient::sendBlock(int piece, int offset, const ByteArray& data)
     write(msg);
 }
 
-void PeerClient::parseMsg(const string& buffer, int& msg_id, string& payload)
+void PeerClient::setBitField(const ByteArray& buffer)
 {
-    int len = *reinterpret_cast<const int*>(buffer.substr(0, 4).c_str());
-    if (len == 0) {
-        msg_id = -1;
-        payload = "";
-    } else {
-        msg_id = buffer[4];
-        payload = buffer.substr(5, len - 1);
-    }
+    bit_field.fromByteArray(torrent_info.num_pieces, buffer);
+}
+
+void PeerClient::updatePiece(const ByteArray& buffer)
+{
+    int idx = *reinterpret_cast<const int*>(buffer.data());
+    bit_field[idx] = 1;
 }

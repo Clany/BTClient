@@ -6,14 +6,14 @@
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #  include <ws2ipdef.h>
-#  define CLOSESOCKET closesocket
+#  define CLOSESOCKET ::closesocket
 #else
 #  include <unistd.h>
 #  include <sys/types.h>
 #  include <sys/socket.h>
 #  include <netdb.h>
 #  include <arpa/inet.h>
-#  define CLOSESOCKET close
+#  define CLOSESOCKET ::close
    using SOCKET = int;
 #  define INVALID_SOCKET -1
 #endif
@@ -61,21 +61,23 @@ public:
     using Ptr = shared_ptr<AbstractSocket>;
 
     AbstractSocket(int domain, int type, int protocal)
-      : handle(socket(domain, type, protocal)), sock_state(UnconnectedState) {}
+      : handle(::socket(domain, type, protocal)), sock_state(UnconnectedState) {}
     AbstractSocket(int sock, SockAddrIN address, SockState state)
       : handle(sock), addr(address), sock_state(state) {}
 
     AbstractSocket(const AbstractSocket&) = delete;
     AbstractSocket& operator=(const AbstractSocket&) = delete;
 
-    ~AbstractSocket() { if (sock_state != UnconnectedState) ::CLOSESOCKET(handle); }
+    ~AbstractSocket() {
+        if (sock_state != UnconnectedState) CLOSESOCKET(handle);
+    }
 
     bool bind(const string& host_address, ushort port) {
         SockAddrIN host_addr;
         memset(&host_addr, 0, sizeof(host_addr));
         host_addr.sin_family = AF_INET;
         host_addr.sin_port   = port;
-        if (!inet_pton(AF_INET, host_address.c_str(), &host_addr.sin_addr)) {
+        if (!::inet_pton(AF_INET, host_address.c_str(), &host_addr.sin_addr)) {
             cerr << "Invalid address, conversion failed" << endl;
             return false;
         }
@@ -109,7 +111,7 @@ public:
         addr.sin_port = port;
 
         sock_state = HostLookupState;
-        if (!inet_pton(AF_INET, host_name.c_str(), &addr.sin_addr)) {
+        if (!::inet_pton(AF_INET, host_name.c_str(), &addr.sin_addr)) {
             cerr << "Invalid address, conversion failed" << endl;
             sock_state = UnconnectedState;
             return false;
@@ -148,7 +150,7 @@ public:
     string peekAddress() const {
         auto _addr = addr.sin_addr;
         char address[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &_addr, address, INET_ADDRSTRLEN);
+        ::inet_ntop(AF_INET, &_addr, address, INET_ADDRSTRLEN);
 
         return string(address);
     }
@@ -162,7 +164,7 @@ protected:
 
     void close() {
         sock_state = ClosingState;
-        ::CLOSESOCKET(handle);
+        CLOSESOCKET(handle);
         sock_state = UnconnectedState;
     }
 
@@ -181,6 +183,17 @@ public:
 
     // Take ownership of existing resource
     TCPSocket(int sock, SockAddrIN addr, SockState state) : AbstractSocket(sock, addr, state) {}
+};
+
+class UDPSocket : public AbstractSocket
+{
+public:
+    using Ptr = shared_ptr<UDPSocket>;
+
+    UDPSocket() : AbstractSocket(AF_INET, SOCK_DGRAM, 0) {}
+
+    // Take ownership of existing resource
+    UDPSocket(int sock, SockAddrIN addr, SockState state) : AbstractSocket(sock, addr, state) {}
 };
 _CLANY_END
 

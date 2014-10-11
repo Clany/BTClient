@@ -28,6 +28,8 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
 #include "clany_defs.h"
 
 _CLANY_BEGIN
@@ -104,7 +106,13 @@ inline bool operator!=(const ByteArray& left, const ByteArray& right)
 
 inline ostream& operator<<(ostream& os, const ByteArray& byte_arr)
 {
-    os << byte_arr.to_string();
+    stringstream ss;
+    ss.flags(ios::right | ios::hex);
+    ss.fill('0');
+    for_each(byte_arr.begin(), byte_arr.end(), [&ss](uchar c) {
+        ss << setw(2) << (int)c << " ";
+    });
+    os << ss.str();
     return os;
 }
 _CLANY_END
