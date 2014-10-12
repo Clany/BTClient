@@ -81,6 +81,7 @@ private:
     list<Peer> peer_list;
     list<PeerClient::Ptr> connection_list;
     size_t max_connections;
+    tbb::task_group torrent_task;
 
     string pid;
 

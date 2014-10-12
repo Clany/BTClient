@@ -34,7 +34,7 @@ const WSA wsa;
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-#include "clany/clany_defs.h"
+#include "clany/byte_array.hpp"
 
 _CLANY_BEGIN
 using SockAddrIN  = sockaddr_in;
@@ -135,6 +135,10 @@ public:
 
     virtual bool write(const string& message) const {
         return write(message.c_str(), message.length());
+    }
+
+    virtual bool write(const ByteArray& data) const {
+        return write(data.data(), data.size());
     }
 
     virtual bool write(const char* message, size_t n) const {

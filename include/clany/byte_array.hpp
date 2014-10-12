@@ -88,10 +88,16 @@ public:
     void fill(char byte) { assign(size(), byte); };
 
     ByteArray sub(int pos, int len = -1) const {
-        if (len < 0) len = size();
-        return ByteArray(begin() + pos, begin() + pos + len);
+        auto begin_iter = begin() + pos;
+        return ByteArray(begin_iter, len < 0 ? end() : begin_iter + len);
     };
 };
+
+inline ByteArray operator+(const ByteArray& left, const ByteArray& right)
+{
+    ByteArray result(left);
+    return result += right;
+}
 
 inline bool operator==(const ByteArray& left, const ByteArray& right)
 {

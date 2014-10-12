@@ -66,6 +66,7 @@ bool BTClient::TmpFile::read(size_t idx, size_t length, ByteArray& data) const
     ifstream ifs(fname, ios::binary);
     if (!ifs) return false;
 
+    data.resize(length);
     ifs.seekg(idx);
     ifs.read(data.data(), length);
 
@@ -126,11 +127,11 @@ void BTClient::run()
     vector<int> idx_vec;
     idx_vec.reserve(meta_info.num_pieces);
     for (auto idx = 0; idx < meta_info.num_pieces; ++idx) {
-        if (bit_field[idx]) idx_vec.push_back(idx);
+        if (!bit_field[idx]) idx_vec.push_back(idx);
     }
     shuffle(idx_vec.begin(), idx_vec.end(), rd_engine);
 
-    task_group torrent_task;
+    torrent_task;
     torrent_task.run(
         [this, &running, &idx_vec]() { download(running[2], idx_vec); }
     );
@@ -261,9 +262,8 @@ void BTClient::download(atm_bool& running, const vector<int>& idx_vec)
                           [&](PeerClient::Ptr peer) {
             auto idx_iter = idx_vec.begin();
 
-            for (;;) {
-                // if connection is no longer not valid, break
-                if (!running) break;
+            while (running/*&& connection is valid*/) {
+                if (!peer->bitFieldAvail()) continue;
 
                 // Find a piece to download
                 idx_mtx.lock();
@@ -299,53 +299,58 @@ void BTClient::download(atm_bool& running, const vector<int>& idx_vec)
 void BTClient::handleMsg(atm_bool& running)
 {
     auto blocks_per_piece = meta_info.piece_length / BLOCK_CHUNK_SIZE;
-    parallel_for_each(connection_list.begin(), connection_list.end(),
-                      [&](PeerClient::Ptr connection) {
-        while (running /*&& connection is valid*/) {
-            // Sleep for 0.3s, prevent from using 100% CPU
-            this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+    uint block_num = 0;
+    while (running) {
+        // Sleep for 0.3s, prevent from using 100% CPU
+        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        parallel_for_each(connection_list.begin(), connection_list.end(),
+                          [&](PeerClient::Ptr connection) {
+            while (running /*&& connection is valid*/) {
+                // Sleep for 0.3s, prevent from using 100% CPU
+                this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
 
-            ByteArray buffer;
-            if (!recvMsg(*connection, buffer, MSG_HEADER_LEN, 0)) return;
+                ByteArray buffer;
+                if (!recvMsg(*connection, buffer, MSG_HEADER_LEN, 0)) continue;
 
-            int   msg_len = *reinterpret_cast<int*>(buffer.data()) - 1;
-            uchar msg_id = buffer[4];
+                int   msg_len = *reinterpret_cast<int*>(buffer.data()) - 1;
+                uchar msg_id = buffer[4];
 
-            buffer.resize(msg_len);
-            if (!recvMsg(*connection, buffer, msg_len, 0)) return;
+                buffer.resize(msg_len);
+                if (!recvMsg(*connection, buffer, msg_len, 0)) continue;
 
-            uint block_num = 0;
-            switch (msg_id) {
-            case PeerClient::BITFIELD:
-                connection->setBitField(buffer);
-                break;
-            case PeerClient::HAVE:
-                connection->updatePiece(buffer);
-                break;
-            case PeerClient::REQUEST:
-                sendBlock(*connection, buffer);
-                break;
-            case PeerClient::CANCEL:
-                // Cancel download task
-                break;
-            case PeerClient::PIECE:
-                writeBlock(buffer);
-                ++block_num;
-                break;
-            default:
-                ATOMIC_PRINT("Unknown message ID\n");
-                break;
+                switch (msg_id) {
+                case PeerClient::BITFIELD:
+                    connection->setBitField(buffer);
+                    break;
+                case PeerClient::HAVE:
+                    connection->updatePiece(buffer);
+                    break;
+                case PeerClient::REQUEST:
+                    sendBlock(*connection, buffer);
+                    break;
+                case PeerClient::CANCEL:
+                    // Cancel download task
+                    break;
+                case PeerClient::PIECE:
+                    writeBlock(buffer);
+                    ++block_num;
+                    break;
+                default:
+                    ATOMIC_PRINT("Unknown message ID\n");
+                    break;
+                }
+                if (block_num == blocks_per_piece) {
+                    block_num = 0;
+                    int piece_idx = *reinterpret_cast<int*>(buffer.data());
+                    ByteArray piece(meta_info.piece_length);
+                    mutex::scoped_lock(file_mtx);
+                    download_file.read(piece_idx * meta_info.piece_length,
+                                       meta_info.piece_length, piece);
+                    validatePiece(piece, piece_idx);
+                }
             }
-            if (block_num == blocks_per_piece) {
-                block_num = 0;
-                int piece_idx = *reinterpret_cast<int*>(buffer.data());
-                ByteArray piece(meta_info.piece_length);
-                mutex::scoped_lock(file_mtx);
-                download_file.read(piece_idx, meta_info.piece_length, piece);
-                validatePiece(piece, piece_idx);
-            }
-        }
-    });
+        });
+    }
 }
 
 bool BTClient::handShake(PeerClient& client_sock, bool is_initiator)
@@ -364,8 +369,8 @@ bool BTClient::handShake(PeerClient& client_sock, bool is_initiator)
     };
 
     auto receiveMessge = [this, &client_sock](ByteArray& buffer) {
-        // Wait for incoming handshake message, drop connection if no response within 3s
-        recvMsg(client_sock, buffer, HANDSHAKE_MSG_LEN);
+        // Wait for incoming handshake message, drop connection if no response within 10s
+        recvMsg(client_sock, buffer, HANDSHAKE_MSG_LEN, 10);
 
         if (buffer.size() != HANDSHAKE_MSG_LEN) {
             ATOMIC_PRINT("Handshake message is invalid, drop connection from %s\n",
@@ -458,7 +463,9 @@ bool BTClient::recvMsg(const TCPSocket& client_sock, string& buffer,
 ByteArray BTClient::getBlock(int piece, int offset, int length) const
 {
     mutex::scoped_lock(file_mtx);
-    if (length < meta_info.piece_length) length = meta_info.piece_length;
+    if (offset + length > meta_info.piece_length) {
+        length = meta_info.piece_length - offset;
+    }
     ByteArray data;
     download_file.read(piece*meta_info.piece_length + offset, length, data);
     return data;

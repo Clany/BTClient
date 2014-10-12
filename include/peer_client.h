@@ -2,6 +2,7 @@
 #define PEER_CLIENT_H
 
 #include <clany/dyn_bitset.hpp>
+#include <tbb/mutex.h>
 #include "metainfo.h"
 #include "socket.hpp"
 
@@ -43,7 +44,13 @@ public:
     }
 
     bool hasPiece(int idx) const {
+        tbb::mutex::scoped_lock(bf_mtx);
         return bit_field[idx];
+    }
+
+    bool bitFieldAvail() const {
+        tbb::mutex::scoped_lock(bf_mtx);
+        return bit_field.any();
     }
 
     // Message protocals
@@ -66,6 +73,8 @@ private:
 
     Peer peer_info;
     BitField bit_field;
+
+    tbb::mutex bf_mtx;
 };
 _CLANY_END
 
