@@ -11,6 +11,8 @@
 
 _CLANY_BEGIN
 class BTClient : public TCPServer {
+    friend class PeerClient;
+
     using atm_bool = tbb::atomic<bool>;
     using atm_int  = tbb::atomic<int>;
 
@@ -44,19 +46,18 @@ class BTClient : public TCPServer {
     void download(atm_bool& running, const vector<int>& idx_vec);
     void handleMsg(atm_bool& running);
 
-    bool handShake(PeerClient& peer_client, bool is_initiator = true);
-    bool hasIncomingData(const TCPSocket& client_sock) const;
+    bool handShake(PeerClient* peer_client, bool is_initiator);
+    bool hasIncomingData(const TCPSocket* client_sock) const;
 
-    bool recvMsg(const TCPSocket& client_sock, char* buffer,
+    bool recvMsg(const TCPSocket* client_sock, char* buffer,
                  size_t msg_len = string::npos, double time_out = 3.0) const;
-    bool recvMsg(const TCPSocket& client_sock, ByteArray& buffer,
+    bool recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
                  size_t msg_len = string::npos, double time_out = 3.0) const;
-    bool recvMsg(const TCPSocket& client_sock, string& buffer,
+    bool recvMsg(const TCPSocket* client_sock, string& buffer,
                  size_t msg_len = string::npos, double time_out = 3.0) const;
 
     auto getBlock(int piece, int offset, int length) const -> ByteArray;
-    auto getBlock(const int* block_header) const -> ByteArray;
-    void sendBlock(const PeerClient& peer_client, const ByteArray& request_msg) const;
+    auto getBlock(const ByteArray& block_header) const->ByteArray;
     void writeBlock(const ByteArray& block_msg);
 
     // Load existing (partial)downloaded file
@@ -87,8 +88,9 @@ private:
 
     MetaInfo meta_info;
     TmpFile download_file;
-    vector<int> pieces_status;
     BitField bit_field;
+    vector<atm_int> pieces_status;
+    vector<int> needed_piece;
 
     string save_name;
     string log_name;

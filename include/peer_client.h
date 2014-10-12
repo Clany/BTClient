@@ -3,6 +3,7 @@
 
 #include <clany/dyn_bitset.hpp>
 #include <tbb/mutex.h>
+#include <tbb/atomic.h>
 #include "metainfo.h"
 #include "socket.hpp"
 
@@ -27,14 +28,27 @@ inline bool operator!=(const Peer& left, const Peer& right)
     return !(left == right);
 }
 
+class BTClient;
+
 class PeerClient : public TCPSocket{
+    using atm_bool = tbb::atomic<bool>;
+    using atm_int = tbb::atomic<int>;
+
+    void listen(BTClient* bt_client);
+    void download(BTClient* bt_client);
+
 public:
     using Ptr = shared_ptr<PeerClient>;
     enum { HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
 
-    PeerClient(const MetaInfo& meta_info) : torrent_info(meta_info) {};
+    PeerClient(const MetaInfo& meta_info)
+        : torrent_info(meta_info), piece_avail(false) {
+        running = true;
+    };
     PeerClient(const MetaInfo& meta_info, int sock, SockAddrIN addr, SockState state)
-        : TCPSocket(sock, addr, state), torrent_info(meta_info) {}
+        : TCPSocket(sock, addr, state), torrent_info(meta_info), piece_avail(false) {
+        running = true;
+    }
 
     void setPeerInfo(const Peer& info) {
         peer_info = info;
@@ -44,14 +58,12 @@ public:
     }
 
     bool hasPiece(int idx) const {
-        tbb::mutex::scoped_lock(bf_mtx);
         return bit_field[idx];
     }
 
-    bool bitFieldAvail() const {
-        tbb::mutex::scoped_lock(bf_mtx);
-        return bit_field.any();
-    }
+    void start(BTClient* bt_client);
+    void stop() { running = false; }
+    bool isRunning() const { return running; }
 
     // Message protocals
     // have: <len=0005><id=4><piece index>
@@ -64,17 +76,18 @@ public:
     void cancelRequest(int piece, int offset, int length) const;
     // piece: <len=0009+X><id=7><index><begin><block>
     void sendBlock(int piece, int offset, const ByteArray& data) const;
+    void sendBlock(const ByteArray& request_msg, const ByteArray& data) const;
 
     void setBitField(const ByteArray& buffer);
     void updatePiece(const ByteArray& buffer);
 
 private:
     const MetaInfo& torrent_info;
+    atm_bool running;
 
     Peer peer_info;
     BitField bit_field;
-
-    tbb::mutex bf_mtx;
+    bool piece_avail;
 };
 _CLANY_END
 
