@@ -43,8 +43,7 @@ tbb::mutex print_mtx;
 
 void PeerClient::listen(BTClient* bt_client)
 {
-    auto blocks_per_piece = torrent_info.piece_length / BLOCK_CHUNK_SIZE;
-    uint blocks_num = 0;
+    int piece_idx = -1;
     ByteArray piece;
     while (running /*&& connestion is valid*/) {
         ByteArray buffer;
@@ -76,20 +75,19 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         case PeerClient::PIECE:
             bt_client->writeBlock(buffer);
+            piece_idx = *reinterpret_cast<int*>(buffer.data());
             piece += buffer;
-            ++blocks_num;
             break;
         default:
             ATOMIC_PRINT("Unknown message ID\n");
             break;
         }
-        if (blocks_num == blocks_per_piece) {
-            int piece_idx = *reinterpret_cast<int*>(buffer.data());
+        if (piece.size() == torrent_info.piece_length ||
+            piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
             };
 
-            blocks_num = 0;
             piece.clear();
         }
     }
@@ -98,6 +96,8 @@ void PeerClient::listen(BTClient* bt_client)
 void PeerClient::download(BTClient* bt_client)
 {
     auto blocks_per_piece = torrent_info.piece_length / BLOCK_CHUNK_SIZE;
+    int last_piece_len = static_cast<int>(torrent_info.length -
+                         (torrent_info.num_pieces - 1) * torrent_info.piece_length);
     auto& p_status = bt_client->pieces_status;
     auto& idx_vec = bt_client->needed_piece;
     auto idx_iter = idx_vec.begin();
@@ -120,11 +120,12 @@ void PeerClient::download(BTClient* bt_client)
         int idx = *idx_iter;
 
         // Send download request, handle last piece separately
-        if (idx == torrent_info.num_pieces) {
-            // TODO
-        }
-        for (auto i = 0u; i < blocks_per_piece; ++i) {
-            requestBlock(idx, i*BLOCK_CHUNK_SIZE, BLOCK_CHUNK_SIZE);
+        if (idx == torrent_info.num_pieces - 1) {
+            requestBlock(idx, 0, last_piece_len);
+        } else {
+            for (auto i = 0u; i < blocks_per_piece; ++i) {
+                requestBlock(idx, i*BLOCK_CHUNK_SIZE, BLOCK_CHUNK_SIZE);
+            }
         }
 
         // Wait until we've got the requested piece, no longer than 30s
