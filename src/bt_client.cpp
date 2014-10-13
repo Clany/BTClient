@@ -195,7 +195,6 @@ void BTClient::listen(atm_bool& running)
             ATOMIC_PRINT("Accept connection from %s\n",
                          peer_client->peekAddress().c_str());
             peer_client->sendAvailPieces(bit_field);
-            addPeerInfo(peer_client->getPeerInfo());
             addPeerClient(peer_client);
 
             // Start torrent task for this connection
