@@ -69,7 +69,7 @@ class BTClient : public TCPServer {
 public:
     using Ptr = shared_ptr<BTClient>;
 
-    BTClient(const string& peer_id) : pid(peer_id) {};
+    BTClient(const string& peer_id) : ts_init(8), pid(peer_id) {};
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
     void addPeerAddr(const string& address, ushort port);
@@ -82,6 +82,7 @@ private:
     list<Peer> peer_list;
     list<PeerClient::Ptr> connection_list;
     size_t max_connections;
+    tbb::task_scheduler_init ts_init;
     tbb::task_group torrent_task;
 
     string pid;
