@@ -20,11 +20,11 @@ int main(int argc, char* argv[])
         cerr << "Input torrent file is invalid!" << endl;
         exit(1);
     };
-    
+
     for (const auto& peer_addr : bt_args.peers) {
         auto sep = peer_addr.find(':');
         string ip = peer_addr.substr(0, sep);
-        ushort port = stoi(peer_addr.substr(sep + 1));
+        ushort port = static_cast<ushort>(stoi(peer_addr.substr(sep + 1)));
         bt_client.addPeerAddr(ip, port);
     }
 

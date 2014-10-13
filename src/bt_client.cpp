@@ -175,6 +175,16 @@ void BTClient::listen(atm_bool& running)
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        // Remove disconnected peer from connection list
+        for (auto iter = connection_list.begin(); iter != connection_list.end();) {
+            if (!(*iter)->isRunning()) {
+                this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+                removePeerInfo((*iter)->getPeerInfo());
+                iter = connection_list.erase(iter);
+            } else {
+                ++iter;
+            }
+        }
         if (connection_list.size() > max_connections) continue;
 
         auto peer_client = getIncomingPeer();
@@ -234,12 +244,6 @@ void BTClient::addPeerClient(PeerClient::Ptr peer_client)
     connection_list.push_back(peer_client);
 }
 
-void BTClient::removePeerClient(PeerClient::Ptr peer_client)
-{
-    mutex::scoped_lock lock(connection_mtx);
-    connection_list.remove(peer_client);
-}
-
 void BTClient::addPeerInfo(const Peer& peer)
 {
     mutex::scoped_lock lock(peer_list_mtx);
@@ -271,7 +275,8 @@ bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
         // Wait for incoming handshake message, drop connection if no response within 10s
         recvMsg(client_sock, buffer, HANDSHAKE_MSG_LEN, 10);
 
-        if (buffer.size() != HANDSHAKE_MSG_LEN) {
+        auto recv_sha1 = buffer.sub(28, 20);
+        if (recv_sha1 != meta_info.info_hash) {
             ATOMIC_PRINT("Handshake message is invalid, drop connection from %s\n",
                          client_sock->peekAddress().c_str());
             // Drop connection
@@ -288,21 +293,11 @@ bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
     ByteArray buffer;
     if (is_initiator) {
         if (!sendMessage()) return false;
-
-        if (receiveMessge(buffer)) {
-            // Extract info hash
-            auto recv_sha1 = buffer.sub(28, 20);
-            if (recv_sha1 != meta_info.info_hash) return false;
-        };
+        if (!receiveMessge(buffer))  return false;
     }
     else {
         if (!receiveMessge(buffer)) return false;
-
-        // Extract info hash
-        auto recv_sha1 = buffer.sub(28, 20);
-        if (recv_sha1 == meta_info.info_hash) {
-            if (!sendMessage()) return false;
-        }
+        if (!sendMessage()) return false;
     }
 
     return true;
@@ -318,17 +313,17 @@ bool BTClient::hasIncomingData(const TCPSocket* client_sock) const
     return ::select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
 }
 
-bool BTClient::recvMsg(const TCPSocket* client_sock, char* buffer,
+int BTClient::recvMsg(const TCPSocket* client_sock, char* buffer,
                        size_t msg_len, double time_out) const
 {
-    if (msg_len > MSG_SIZE_LIMITE) return false;
+    if (msg_len > MSG_SIZE_LIMITE) return 0;
 
     int count = 0;
     int max_count = time_out == 0 ?
         1 : static_cast<int>(ceil(time_out / SLEEP_INTERVAL));
     for (;;) {
         // Wait for incoming handshake message
-        if (++count > max_count) return false;
+        if (++count > max_count) return 0;
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
         if (!hasIncomingData(client_sock)) continue;
 
@@ -336,23 +331,23 @@ bool BTClient::recvMsg(const TCPSocket* client_sock, char* buffer,
         size_t idx = 0;
         do {
             num_bytes = ::recv(client_sock->sock(), buffer + idx, msg_len - num_bytes, 0);
-            if (num_bytes <= 0) break;
+            if (num_bytes <= 0) return -1;
             idx += num_bytes;
         } while (hasIncomingData(client_sock) && idx < msg_len);
 
-        if (idx == msg_len) return true;
-        return false;
+        if (idx == msg_len) return 1;
+        return 0;
     }
 }
 
-bool BTClient::recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
+int BTClient::recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
                        size_t msg_len, double time_out) const
 {
     buffer.resize(msg_len);
     return recvMsg(client_sock, buffer.data(), msg_len, time_out);
 }
 
-bool BTClient::recvMsg(const TCPSocket* client_sock, string& buffer,
+int BTClient::recvMsg(const TCPSocket* client_sock, string& buffer,
                        size_t msg_len, double time_out) const
 {
     buffer.resize(msg_len);

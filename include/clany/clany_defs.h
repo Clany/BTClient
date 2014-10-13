@@ -61,17 +61,17 @@
           << msg << std::endl
 #  define _TRACE(format, ...) \
      char buffer[256]; \
-     sprintf(buffer, (format), __VA_ARGS__); \
+     sprintf(buffer, (format), ##__VA_ARGS__); \
      stringstream ss; \
      ss << "Debug: " << __FILE__ << "(" << __LINE__ << "): " << buffer << endl
 #  ifdef _MSC_VER
 #    define TRACE(format, ...) { \
-       _TRACE((format), __VA_ARGS__); \
+       _TRACE((format), ##__VA_ARGS__); \
        OutputDebugString(ss.str().c_str()); \
      }
 #  else
 #    define TRACE(format, ...) { \
-       _TRACE((format), __VA_ARGS__); \
+       _TRACE((format), ##__VA_ARGS__); \
        cout << ss.str(); \
      }
 #  endif

@@ -35,7 +35,7 @@ struct BlockHeader {
 };
 
 const double SLEEP_INTERVAL   = 0.1;
-const int MSG_LEN_LIMIT    = 1024 * 1024;  // 1mb
+const int MSG_LEN_LIMIT       = 1024 * 1024;  // 1mb
 const size_t BLOCK_CHUNK_SIZE = 32 * 1024;   // 16kb
 
 tbb::mutex print_mtx;
@@ -45,20 +45,28 @@ void PeerClient::listen(BTClient* bt_client)
 {
     int piece_idx = -1;
     ByteArray piece;
-    while (running /*&& connestion is valid*/) {
+    while (running && state() != UnconnectedState) {
         ByteArray buffer;
-        if (!bt_client->recvMsg(this, buffer, 5, 0)) {
+        int retval = bt_client->recvMsg(this, buffer, 5, 0);
+        if (!retval) {
             // Sleep for a short time, prevent from using 100% CPU
             this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
             continue;
         }
+        if (retval < 0) {
+            disconnect();
+            break;
+        }
 
         int   msg_len = *reinterpret_cast<int*>(buffer.data()) - 1;
         uchar msg_id = buffer[4];
+        if (msg_len < 0 || msg_len > MSG_LEN_LIMIT) continue;
 
         buffer.resize(msg_len);
-        if (msg_len < 0 || msg_len > MSG_LEN_LIMIT ||
-            !bt_client->recvMsg(this, buffer, msg_len)) continue;
+        if (bt_client->recvMsg(this, buffer, msg_len) < 0) {
+            disconnect();
+            break;
+        }
 
         switch (msg_id) {
         case PeerClient::BITFIELD:
@@ -86,8 +94,9 @@ void PeerClient::listen(BTClient* bt_client)
             piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
-                ATOMIC_PRINT("Piece %d download complete, progress: %.2f%%\n",
-                piece_idx, 100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
+                ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
+                piece_idx, peekAddress(),
+                100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
             };
 
             piece.clear();
@@ -104,7 +113,7 @@ void PeerClient::download(BTClient* bt_client)
     auto& idx_vec = bt_client->needed_piece;
     auto idx_iter = idx_vec.begin();
 
-    while (running/*&& connestion is valid*/) {
+    while (running && state() != UnconnectedState) {
         // Sleep for a short time, prevent from using 100% CPU
         this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
 
@@ -148,10 +157,11 @@ void PeerClient::start(BTClient* bt_client)
 //        [&]() { listen(bt_client); },
 //        [&]() { download(bt_client); }
 //    );
-    thread first(mem_fn(&listen), this, bt_client);
-    thread second(mem_fn(&download), this, bt_client);
-    first.join();
-    second.join();
+    thread in(mem_fn(&PeerClient::listen), this, bt_client);
+    thread out(mem_fn(&PeerClient::download), this, bt_client);
+    in.join();
+    out.join();
+    running = false;
 }
 
 void PeerClient::sendPieceUpdate(int piece) const

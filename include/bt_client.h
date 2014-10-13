@@ -1,8 +1,8 @@
 #ifndef BT_CLIENT_H
 #define BT_CLIENT_H
 
-#include <list>
 #include <clany/clany_defs.h>
+#include <list>
 #include <tbb/tbb.h>
 #include <tbb/compat/thread>
 #include "peer_client.h"
@@ -49,12 +49,12 @@ class BTClient : public TCPServer {
     bool handShake(PeerClient* peer_client, bool is_initiator);
     bool hasIncomingData(const TCPSocket* client_sock) const;
 
-    bool recvMsg(const TCPSocket* client_sock, char* buffer,
-                 size_t msg_len = string::npos, double time_out = 3.0) const;
-    bool recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
-                 size_t msg_len = string::npos, double time_out = 3.0) const;
-    bool recvMsg(const TCPSocket* client_sock, string& buffer,
-                 size_t msg_len = string::npos, double time_out = 3.0) const;
+    int recvMsg(const TCPSocket* client_sock, char* buffer,
+                size_t msg_len = string::npos, double time_out = 3.0) const;
+    int recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
+                size_t msg_len = string::npos, double time_out = 3.0) const;
+    int recvMsg(const TCPSocket* client_sock, string& buffer,
+                size_t msg_len = string::npos, double time_out = 3.0) const;
 
     auto getBlock(int piece, int offset, int length) const -> ByteArray;
     auto getBlock(const ByteArray& block_header) const->ByteArray;
