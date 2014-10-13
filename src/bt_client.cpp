@@ -6,7 +6,7 @@
 
 #define ATOMIC_PRINT(format, ...) { \
   mutex::scoped_lock lock(print_mtx); \
-  printf((format), __VA_ARGS__); \
+  printf((format), ##__VA_ARGS__); \
 }
 
 using namespace std;
@@ -135,7 +135,7 @@ void BTClient::run()
     while(getline(cin, input_str)) {
         char c = input_str[0];
         // Exit the program if user press q/Q
-        if (input_str.size() == 1 && c == 'q' || c == 'Q') {
+        if (input_str.size() == 1 && (c == 'q' || c == 'Q')) {
             fill(begin(running), end(running), false);
             for (auto& peer : connection_list) peer->stop();
             // Wait for all tasks to terminate

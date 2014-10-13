@@ -9,7 +9,7 @@ using namespace clany;
 
 #define ATOMIC_PRINT(format, ...) { \
   mutex::scoped_lock lock(print_mtx); \
-  printf((format), __VA_ARGS__); \
+  printf((format), ##__VA_ARGS__); \
 }
 
 namespace {
@@ -35,8 +35,8 @@ struct BlockHeader {
 };
 
 const double SLEEP_INTERVAL   = 0.1;
-const size_t MSG_LEN_LIMIT    = 1024 * 1024;  // 1mb
-const size_t BLOCK_CHUNK_SIZE = 16 * 1024;   // 16kb
+const int MSG_LEN_LIMIT    = 1024 * 1024;  // 1mb
+const size_t BLOCK_CHUNK_SIZE = 32 * 1024;   // 16kb
 
 tbb::mutex print_mtx;
 } // Unnamed namespace
@@ -47,7 +47,7 @@ void PeerClient::listen(BTClient* bt_client)
     ByteArray piece;
     while (running /*&& connestion is valid*/) {
         ByteArray buffer;
-        if (!bt_client->recvMsg(this, buffer, sizeof(MsgHeader), 0)) {
+        if (!bt_client->recvMsg(this, buffer, 5, 0)) {
             // Sleep for a short time, prevent from using 100% CPU
             this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
             continue;
@@ -76,7 +76,7 @@ void PeerClient::listen(BTClient* bt_client)
         case PeerClient::PIECE:
             bt_client->writeBlock(buffer);
             piece_idx = *reinterpret_cast<int*>(buffer.data());
-            piece += buffer;
+            piece += buffer.sub(8);
             break;
         default:
             ATOMIC_PRINT("Unknown message ID\n");
@@ -86,6 +86,8 @@ void PeerClient::listen(BTClient* bt_client)
             piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
+                ATOMIC_PRINT("Piece %d download complete, progress: %.2f%%\n",
+                piece_idx, 100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
             };
 
             piece.clear();
@@ -142,10 +144,14 @@ void PeerClient::download(BTClient* bt_client)
 
 void PeerClient::start(BTClient* bt_client)
 {
-    parallel_invoke(
-        [&]() { listen(bt_client); },
-        [&]() { download(bt_client); }
-    );
+//    parallel_invoke(
+//        [&]() { listen(bt_client); },
+//        [&]() { download(bt_client); }
+//    );
+    thread first(mem_fn(&listen), this, bt_client);
+    thread second(mem_fn(&download), this, bt_client);
+    first.join();
+    second.join();
 }
 
 void PeerClient::sendPieceUpdate(int piece) const

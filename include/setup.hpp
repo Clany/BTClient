@@ -9,15 +9,12 @@
 
 _CLANY_BEGIN
 struct CmdArgs {
-    int    verbose      = 0;    // verbose level
-    string save_file    = "";   // filename to save to
-    string log_file     = "";   // log file name
-    string torrent_file = "";   // torrent file name
-    string id           = "";    // this bt_clients id
-//     FILE * f_save;
-//     peer_t * peers[MAX_CONNECTIONS]; // array of peer_t pointers
-//     int sockets[MAX_CONNECTIONS]; //Array of possible sockets
-//     struct pollfd poll_sockets[MAX_CONNECTIONS]; //Array of pollfd for polling for input
+    int    verbose       = 0;    // verbose level
+    string save_file     = "";   // filename to save to
+    string log_file      = "";   // log file name
+    string torrent_file  = "";   // torrent file name
+    string id            = "";    // this bt_clients id
+    vector<string> peers = {};
 };
 
 inline void printLineSep(int len = 80)
@@ -68,18 +65,7 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
             bt_args.log_file = cmd_parser.getArg<string>();
             break;
         case 'p': //peer
-//             n_peers++;
-//             //check if we are going to overflow
-//             if (n_peers > MAX_CONNECTIONS) {
-//                 fprintf(stderr, "ERROR: Can only support %d initial peers", MAX_CONNECTIONS);
-//                 usage(stderr);
-//                 exit(1);
-//             }
-//
-//             bt_args.peers[n_peers] = malloc(sizeof(peer_t));
-//
-//             //parse peers
-//             __parse_peer(bt_args.peers[n_peers], optarg);
+            bt_args.peers.push_back(cmd_parser.getArg<string>());
             break;
         case 'I':
             bt_args.id = cmd_parser.getArg<string>();

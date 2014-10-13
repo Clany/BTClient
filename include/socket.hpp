@@ -2,7 +2,9 @@
 #define SOCKET_HPP
 
 #ifdef _WIN32
-#  define NOMINMAX
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #  include <ws2ipdef.h>

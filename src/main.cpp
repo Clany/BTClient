@@ -3,6 +3,7 @@
 #include "setup.hpp"
 
 using namespace std;
+using namespace tbb;
 using namespace clany;
 
 #ifdef _WIN32
@@ -19,6 +20,13 @@ int main(int argc, char* argv[])
         cerr << "Input torrent file is invalid!" << endl;
         exit(1);
     };
+    
+    for (const auto& peer_addr : bt_args.peers) {
+        auto sep = peer_addr.find(':');
+        string ip = peer_addr.substr(0, sep);
+        ushort port = stoi(peer_addr.substr(sep + 1));
+        bt_client.addPeerAddr(ip, port);
+    }
 
     if (bt_args.verbose) {
         printTorrentFileInfo(bt_client.getMetaInfo());
