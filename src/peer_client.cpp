@@ -16,7 +16,7 @@ namespace {
 struct MsgHeader {
     union {
         struct {
-            int   length;
+            uint  length;
             uchar msg_id;
         };
         char data[5];
@@ -76,7 +76,7 @@ void PeerClient::listen(BTClient* bt_client)
             updatePiece(buffer);
             break;
         case PeerClient::REQUEST:
-            sendBlock(buffer, bt_client->getBlock(buffer));
+            handleRequest(buffer, bt_client);
             break;
         case PeerClient::CANCEL:
             // Cancel download task
@@ -95,7 +95,7 @@ void PeerClient::listen(BTClient* bt_client)
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
                 ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
-                piece_idx, peekAddress(),
+                piece_idx, peekAddress().c_str(),
                 100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
             };
 
@@ -106,6 +106,8 @@ void PeerClient::listen(BTClient* bt_client)
 
 void PeerClient::download(BTClient* bt_client)
 {
+    task_scheduler_init init(8);
+    
     auto blocks_per_piece = torrent_info.piece_length / BLOCK_CHUNK_SIZE;
     int last_piece_len = static_cast<int>(torrent_info.length -
                          (torrent_info.num_pieces - 1) * torrent_info.piece_length);
@@ -164,59 +166,65 @@ void PeerClient::start(BTClient* bt_client)
     running = false;
 }
 
-void PeerClient::sendPieceUpdate(int piece) const
+bool PeerClient::sendPieceUpdate(int piece) const
 {
     MsgHeader msg_header {5, HAVE};
     auto msg = ByteArray(msg_header.data, 5) +
                ByteArray(reinterpret_cast<char*>(&piece), sizeof(int));
-    write(msg);
+    return write(msg);
 }
 
-void PeerClient::sendAvailPieces(const BitField& bit_field) const
+bool PeerClient::sendAvailPieces(const BitField& bit_field) const
 {
     // Do no send if we have no piece
-    if (bit_field.none()) return;
+    if (bit_field.none()) return false;
 
     ByteArray payload    {bit_field.toByteArray()};
     MsgHeader msg_header {1 + payload.size(), BITFIELD};
     auto msg = ByteArray(msg_header.data, 5) + payload;
-    write(msg);
+    return write(msg);
 }
 
-void PeerClient::requestBlock(int piece, int offset, int length) const
+bool PeerClient::requestBlock(int piece, int offset, int length) const
 {
     MsgHeader   msg_header {13, REQUEST};
     BlockHeader blk_header {piece, offset, length};
     auto msg = ByteArray(msg_header.data, 5) + ByteArray(blk_header.data, 12);
-    write(msg);
+    return write(msg);
 }
 
-void PeerClient::cancelRequest(int piece, int offset, int length) const
+bool PeerClient::cancelRequest(int piece, int offset, int length) const
 {
     MsgHeader   msg_header {13, CANCEL};
     BlockHeader blk_header {piece, offset, length};
     auto msg = ByteArray(msg_header.data, 5) + ByteArray(blk_header.data, 12);
-    write(msg);
+    return write(msg);
 }
 
-void PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
+bool PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
 {
     MsgHeader   msg_header {9 + data.size(), PIECE};
     BlockHeader blk_header {piece, offset, 0};
     auto msg = ByteArray(msg_header.data, 5) + ByteArray(blk_header.data, 8) + data;
-    write(msg);
+    return write(msg);
 }
 
-void PeerClient::sendBlock(const ByteArray& request_msg, const ByteArray& data) const
+void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client) const
 {
     auto blk_header = reinterpret_cast<const int*>(request_msg.data());
     int piece_idx   = blk_header[0];
     int offset      = blk_header[1];
     int length      = blk_header[2];
-    if (data.empty()) {
-        cancelRequest(piece_idx, offset, length);
+    if (!bt_client->bit_field[piece_idx]) {
+        thread cancel([=] {
+            cancelRequest(piece_idx, offset, length);
+        });
+        cancel.detach();
     } else {
-        sendBlock(piece_idx, offset, data);
+        thread send([=]() {
+            sendBlock(piece_idx, offset, bt_client->getBlock(request_msg));
+        });
+        send.detach();
     }
 }
 

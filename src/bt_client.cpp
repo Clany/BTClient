@@ -179,6 +179,7 @@ void BTClient::listen(atm_bool& running)
         for (auto iter = connection_list.begin(); iter != connection_list.end();) {
             if (!(*iter)->isRunning()) {
                 this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+                ATOMIC_PRINT("Disconnected from %s\n", (*iter)->peekAddress().c_str());
                 removePeerInfo((*iter)->getPeerInfo());
                 iter = connection_list.erase(iter);
             } else {
