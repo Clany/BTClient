@@ -14,7 +14,7 @@ using namespace tbb;
 using namespace clany;
 
 namespace {
-const ushort LISTEN_PORT       = 6767;
+const ushort LISTEN_PORT       = 6768;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
 const double SLEEP_INTERVAL    = 0.3;
@@ -304,6 +304,13 @@ bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
     }
 
     return true;
+}
+
+void BTClient::broadcastPU(int idx) const
+{
+    for (const auto& peer : connection_list) {
+        peer->sendPieceUpdate(idx);
+    }
 }
 
 bool BTClient::hasIncomingData(const TCPSocket* client_sock) const

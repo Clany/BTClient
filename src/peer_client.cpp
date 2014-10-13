@@ -96,7 +96,7 @@ void PeerClient::listen(BTClient* bt_client)
         if (piece.size() == (size_t)torrent_info.piece_length ||
             piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
-                sendPieceUpdate(piece_idx);
+                bt_client->broadcastPU(piece_idx);
                 int piece_num = bt_client->bit_field.count();
                 ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
                 piece_idx, peekAddress().c_str(),
@@ -117,7 +117,6 @@ void PeerClient::request(BTClient* bt_client)
                          (torrent_info.num_pieces - 1) * torrent_info.piece_length);
     auto& p_status = bt_client->pieces_status;
     auto& idx_vec = bt_client->needed_piece;
-    auto idx_iter = idx_vec.begin();
 
     while (running && state() != UnconnectedState) {
         // Sleep for a short time, prevent from using 100% CPU
@@ -129,7 +128,7 @@ void PeerClient::request(BTClient* bt_client)
         if (!piece_avail) continue;
 
         // Find a piece to download
-        idx_iter = find_if(idx_iter, idx_vec.end(), [this, &p_status](int idx) {
+        auto idx_iter = find_if(idx_vec.begin(), idx_vec.end(), [this, &p_status](int idx) {
             return hasPiece(idx) &&
                    p_status[idx].compare_and_swap(0, -1) < 0;
         });
@@ -234,6 +233,7 @@ void PeerClient::setBitField(const ByteArray& buffer)
 
 void PeerClient::updatePiece(const ByteArray& buffer)
 {
+    piece_avail = true;
     int idx = *reinterpret_cast<const int*>(buffer.data());
     bit_field[idx] = 1;
 }

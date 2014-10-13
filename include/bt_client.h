@@ -45,8 +45,9 @@ class BTClient : public TCPServer {
     void handleMsg(atm_bool& running);
 
     bool handShake(PeerClient* peer_client, bool is_initiator);
-    bool hasIncomingData(const TCPSocket* client_sock) const;
+    void broadcastPU(int piece_idx) const;
 
+    bool hasIncomingData(const TCPSocket* client_sock) const;
     int recvMsg(const TCPSocket* client_sock, char* buffer,
                 size_t msg_len = string::npos, double time_out = 3.0) const;
     int recvMsg(const TCPSocket* client_sock, ByteArray& buffer,
