@@ -14,7 +14,7 @@ using namespace tbb;
 using namespace clany;
 
 namespace {
-const ushort LISTEN_PORT       = 6767;
+const ushort LISTEN_PORT       = 6768;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    BUF_LEN           = 1024;
 const int    HANDSHAKE_MSG_LEN = 68;

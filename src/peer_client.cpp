@@ -106,8 +106,6 @@ void PeerClient::listen(BTClient* bt_client)
 
 void PeerClient::download(BTClient* bt_client)
 {
-    task_scheduler_init init(8);
-    
     auto blocks_per_piece = torrent_info.piece_length / BLOCK_CHUNK_SIZE;
     int last_piece_len = static_cast<int>(torrent_info.length -
                          (torrent_info.num_pieces - 1) * torrent_info.piece_length);
@@ -155,14 +153,15 @@ void PeerClient::download(BTClient* bt_client)
 
 void PeerClient::start(BTClient* bt_client)
 {
-//    parallel_invoke(
-//        [&]() { listen(bt_client); },
-//        [&]() { download(bt_client); }
-//    );
-    thread in(mem_fn(&PeerClient::listen), this, bt_client);
-    thread out(mem_fn(&PeerClient::download), this, bt_client);
-    in.join();
-    out.join();
+    parallel_invoke(
+        [&]() { listen(bt_client); },
+        [&]() { download(bt_client); }
+    );
+    upload_task.wait();
+//    thread in(mem_fn(&PeerClient::listen), this, bt_client);
+//    thread out(mem_fn(&PeerClient::download), this, bt_client);
+//    in.join();
+//    out.join();
     running = false;
 }
 
@@ -209,22 +208,20 @@ bool PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
     return write(msg);
 }
 
-void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client) const
+void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client)
 {
     auto blk_header = reinterpret_cast<const int*>(request_msg.data());
     int piece_idx   = blk_header[0];
     int offset      = blk_header[1];
     int length      = blk_header[2];
     if (!bt_client->bit_field[piece_idx]) {
-        thread cancel([=] {
+        upload_task.run([=]() {
             cancelRequest(piece_idx, offset, length);
         });
-        cancel.detach();
     } else {
-        thread send([=]() {
+        upload_task.run([=]() {
             sendBlock(piece_idx, offset, bt_client->getBlock(request_msg));
         });
-        send.detach();
     }
 }
 

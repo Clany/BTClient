@@ -2,9 +2,7 @@
 #define PEER_CLIENT_H
 
 #include <clany/dyn_bitset.hpp>
-#include <tbb/mutex.h>
-#include <tbb/atomic.h>
-#include <tbb/task_group.h>
+#include <tbb/tbb.h>
 #include "metainfo.h"
 #include "socket.hpp"
 
@@ -47,7 +45,8 @@ public:
         running = true;
     };
     PeerClient(const MetaInfo& meta_info, int sock, SockAddrIN addr, SockState state)
-        : TCPSocket(sock, addr, state), torrent_info(meta_info), piece_avail(false) {
+        : TCPSocket(sock, addr, state), torrent_info(meta_info),
+          piece_avail(false) {
         running = true;
     }
 
@@ -80,12 +79,13 @@ public:
     
     void setBitField(const ByteArray& buffer);
     void updatePiece(const ByteArray& buffer);
-    void handleRequest(const ByteArray& request_msg, BTClient* bt_client) const;
+    void handleRequest(const ByteArray& request_msg, BTClient* bt_client);
 
 private:
     const MetaInfo& torrent_info;
     atm_bool running;
-    vector<thread> upload_task;
+//    tbb::task_scheduler_init ts_init;
+    tbb::task_group upload_task;
 
     Peer peer_info;
     BitField bit_field;
