@@ -4,6 +4,7 @@
 #include <clany/dyn_bitset.hpp>
 #include <tbb/mutex.h>
 #include <tbb/atomic.h>
+#include <tbb/task_group.h>
 #include "metainfo.h"
 #include "socket.hpp"
 
@@ -67,23 +68,24 @@ public:
 
     // Message protocals
     // have: <len=0005><id=4><piece index>
-    void sendPieceUpdate(int piece) const;
+    bool sendPieceUpdate(int piece) const;
     // bitfield: <len=0001+X><id=5><bitfield>
-    void sendAvailPieces(const BitField& bit_field) const;
+    bool sendAvailPieces(const BitField& bit_field) const;
     // request: <len=0013><id=6><index><begin><length>
-    void requestBlock(int piece, int offset, int length) const;
+    bool requestBlock(int piece, int offset, int length) const;
     // cancel: <len=0013><id=8><index><begin><length>
-    void cancelRequest(int piece, int offset, int length) const;
+    bool cancelRequest(int piece, int offset, int length) const;
     // piece: <len=0009+X><id=7><index><begin><block>
-    void sendBlock(int piece, int offset, const ByteArray& data) const;
-
+    bool sendBlock(int piece, int offset, const ByteArray& data) const;
+    
     void setBitField(const ByteArray& buffer);
     void updatePiece(const ByteArray& buffer);
-    void handleRequest(const ByteArray& buffer, BTClient* bt_client) const;
+    void handleRequest(const ByteArray& request_msg, BTClient* bt_client) const;
 
 private:
     const MetaInfo& torrent_info;
     atm_bool running;
+    vector<thread> upload_task;
 
     Peer peer_info;
     BitField bit_field;

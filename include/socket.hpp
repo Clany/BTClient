@@ -145,7 +145,6 @@ public:
 
     virtual bool write(const char* message, size_t n) const {
         if (::send(handle, message, n, 0) < 0) {
-            cerr << "Fail to send the message!" << endl;
             return false;
         }
         return true;
