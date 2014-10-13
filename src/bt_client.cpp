@@ -181,8 +181,8 @@ void BTClient::listen(atm_bool& running)
                 auto peer_iter = find(peer_list.begin(), peer_list.end(),
                                       (*iter)->getPeerInfo());
                 if (peer_iter != peer_list.end()) peer_iter->is_connected = false;
-                iter = connection_list.erase(iter);
                 ATOMIC_PRINT("Disconnected from %s\n", (*iter)->peekAddress().c_str());
+                iter = connection_list.erase(iter);
                 continue;
             }
             ++iter;
