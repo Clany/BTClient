@@ -2,9 +2,9 @@
 #define PEER_CLIENT_H
 
 #include <clany/dyn_bitset.hpp>
-#include <tbb/tbb.h>
 #include "metainfo.h"
 #include "socket.hpp"
+#include <tbb/tbb.h>
 
 _CLANY_BEGIN
 struct Peer
@@ -27,6 +27,16 @@ inline bool operator!=(const Peer& left, const Peer& right)
     return !(left == right);
 }
 
+inline bool operator<(const Peer& left, const Peer& right)
+{
+    return left.pid < right.pid;
+}
+
+inline bool operator>(const Peer& left, const Peer& right)
+{
+    return left.pid > right.pid;
+}
+
 class BTClient;
 
 class PeerClient : public TCPSocket{
@@ -34,19 +44,20 @@ class PeerClient : public TCPSocket{
     using atm_int = tbb::atomic<int>;
 
     void listen(BTClient* bt_client);
-    void download(BTClient* bt_client);
+    void request(BTClient* bt_client);
 
 public:
     using Ptr = shared_ptr<PeerClient>;
     enum { HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
 
     PeerClient(const MetaInfo& meta_info)
-        : torrent_info(meta_info), piece_avail(false) {
+        : torrent_info(meta_info), bit_field(meta_info.num_pieces),
+          piece_avail(false) {
         running = true;
     };
     PeerClient(const MetaInfo& meta_info, int sock, SockAddrIN addr, SockState state)
         : TCPSocket(sock, addr, state), torrent_info(meta_info),
-          piece_avail(false) {
+          bit_field(meta_info.num_pieces), piece_avail(false) {
         running = true;
     }
 
@@ -63,6 +74,7 @@ public:
 
     void start(BTClient* bt_client);
     void stop() { running = false; }
+    void wait() { peer_task.wait(); }
     bool isRunning() const { return running; }
 
     // Message protocals
@@ -76,7 +88,7 @@ public:
     bool cancelRequest(int piece, int offset, int length) const;
     // piece: <len=0009+X><id=7><index><begin><block>
     bool sendBlock(int piece, int offset, const ByteArray& data) const;
-    
+
     void setBitField(const ByteArray& buffer);
     void updatePiece(const ByteArray& buffer);
     void handleRequest(const ByteArray& request_msg, BTClient* bt_client);
@@ -85,7 +97,7 @@ private:
     const MetaInfo& torrent_info;
     atm_bool running;
 //    tbb::task_scheduler_init ts_init;
-    tbb::task_group upload_task;
+    tbb::task_group peer_task;
 
     Peer peer_info;
     BitField bit_field;

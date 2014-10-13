@@ -93,13 +93,16 @@ void PeerClient::listen(BTClient* bt_client)
             ATOMIC_PRINT("Unknown message ID\n");
             break;
         }
-        if (piece.size() == torrent_info.piece_length ||
+        if (piece.size() == (size_t)torrent_info.piece_length ||
             piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
+                int piece_num = bt_client->bit_field.count();
                 ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
                 piece_idx, peekAddress().c_str(),
-                100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
+                100.0 *  piece_num / torrent_info.num_pieces);
+                if (piece_num == torrent_info.num_pieces)
+                    ATOMIC_PRINT("Download complete\n");
             };
 
             piece.clear();
@@ -107,7 +110,7 @@ void PeerClient::listen(BTClient* bt_client)
     }
 }
 
-void PeerClient::download(BTClient* bt_client)
+void PeerClient::request(BTClient* bt_client)
 {
     auto blocks_per_piece = torrent_info.piece_length / BLOCK_CHUNK_SIZE;
     int last_piece_len = static_cast<int>(torrent_info.length -
@@ -156,12 +159,10 @@ void PeerClient::download(BTClient* bt_client)
 
 void PeerClient::start(BTClient* bt_client)
 {
-    parallel_invoke(
-        [&]() { listen(bt_client); },
-        [&]() { download(bt_client); }
-    );
-    upload_task.wait();
-    running = false;
+    peer_task.run([&]() { listen(bt_client); });
+    peer_task.run([&]() { request(bt_client); });
+    wait();
+    stop();
 }
 
 bool PeerClient::sendPieceUpdate(int piece) const
@@ -214,11 +215,11 @@ void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client
     int offset      = blk_header[1];
     int length      = blk_header[2];
     if (!bt_client->bit_field[piece_idx]) {
-        upload_task.run([=]() {
+        peer_task.run([=]() {
             cancelRequest(piece_idx, offset, length);
         });
     } else {
-        upload_task.run([=]() {
+        peer_task.run([=]() {
             sendBlock(piece_idx, offset, bt_client->getBlock(request_msg));
         });
     }

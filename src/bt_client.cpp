@@ -14,7 +14,7 @@ using namespace tbb;
 using namespace clany;
 
 namespace {
-const ushort LISTEN_PORT       = 6768;
+const ushort LISTEN_PORT       = 6767;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
 const double SLEEP_INTERVAL    = 0.3;
@@ -135,7 +135,7 @@ void BTClient::run()
         // Exit the program if user press q/Q
         if (input_str.size() == 1 && (c == 'q' || c == 'Q')) {
             fill(begin(running), end(running), false);
-            for (auto& peer : connection_list) peer->stop();
+            for (auto& peer : connection_list) peer.second->stop();
             // Wait for all tasks to terminate
             search_peers.wait();
             torrent_task.wait();
@@ -173,17 +173,6 @@ void BTClient::listen(atm_bool& running)
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
         this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
-        // Remove disconnected peer from connection list
-        for (auto iter = connection_list.begin(); iter != connection_list.end();) {
-            if (!(*iter)->isRunning()) {
-                this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
-                ATOMIC_PRINT("Disconnected from %s\n", (*iter)->peekAddress().c_str());
-                removePeerInfo((*iter)->getPeerInfo());
-                iter = connection_list.erase(iter);
-            } else {
-                ++iter;
-            }
-        }
         if (connection_list.size() > max_connections) continue;
 
         auto peer_client = getIncomingPeer();
@@ -211,6 +200,15 @@ void BTClient::initiate(atm_bool& running)
 
         // Iterate peer list to find available connection
         for (auto& peer : peer_list) {
+            // Remove disconnected peer from connection list
+            auto iter = connection_list.find(peer);
+            if (iter != connection_list.end() && !iter->second->isRunning()) {
+                ATOMIC_PRINT("Disconnected from %s\n", iter->second->peekAddress().c_str());
+                iter->second->wait();
+                peer.is_connected = false;
+                connection_list.erase(iter);
+                continue;
+            }
             if (peer.is_connected) continue;
 
             auto peer_client = make_shared<PeerClient>(meta_info);
@@ -240,7 +238,7 @@ void BTClient::initiate(atm_bool& running)
 void BTClient::addPeerClient(PeerClient::Ptr peer_client)
 {
     mutex::scoped_lock lock(connection_mtx);
-    connection_list.push_back(peer_client);
+    connection_list.emplace(peer_client->getPeerInfo(), peer_client);
 }
 
 void BTClient::addPeerInfo(const Peer& peer)

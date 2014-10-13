@@ -1,9 +1,9 @@
 #ifndef BT_CLIENT_H
 #define BT_CLIENT_H
 
-#include <clany/clany_defs.h>
 #include <list>
-#include <tbb/tbb.h>
+#include <map>
+#include <clany/clany_defs.h>
 #include "peer_client.h"
 #include "tcp_server.hpp"
 #include "metainfo.h"
@@ -79,7 +79,7 @@ public:
 
 private:
     list<Peer> peer_list;
-    list<PeerClient::Ptr> connection_list;
+    map<Peer, PeerClient::Ptr> connection_list;
     size_t max_connections;
     tbb::task_scheduler_init ts_init;
     tbb::task_group torrent_task;
