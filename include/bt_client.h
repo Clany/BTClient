@@ -2,7 +2,6 @@
 #define BT_CLIENT_H
 
 #include <list>
-#include <map>
 #include <clany/clany_defs.h>
 #include "peer_client.h"
 #include "tcp_server.hpp"
@@ -79,7 +78,7 @@ public:
 
 private:
     list<Peer> peer_list;
-    map<Peer, PeerClient::Ptr> connection_list;
+    list<PeerClient::Ptr> connection_list;
     size_t max_connections;
     tbb::task_scheduler_init ts_init;
     tbb::task_group torrent_task;
