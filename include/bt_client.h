@@ -4,7 +4,6 @@
 #include <clany/clany_defs.h>
 #include <list>
 #include <tbb/tbb.h>
-#include <tbb/compat/thread>
 #include "peer_client.h"
 #include "tcp_server.hpp"
 #include "metainfo.h"
@@ -69,7 +68,7 @@ class BTClient : public TCPServer {
 public:
     using Ptr = shared_ptr<BTClient>;
 
-    BTClient(const string& peer_id) : ts_init(8), pid(peer_id) {};
+    BTClient(const string& peer_id) : ts_init(16), pid(peer_id) {};
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
     void addPeerAddr(const string& address, ushort port);

@@ -1,5 +1,4 @@
 #include <clany/clany_defs.h>
-#include <tbb/compat/thread>
 #include "peer_client.h"
 #include "bt_client.h"
 
@@ -21,6 +20,8 @@ struct MsgHeader {
         };
         char data[5];
     };
+    MsgHeader(uint len, uchar id)
+        : length(len), msg_id(id) {}
 };
 
 struct BlockHeader {
@@ -32,6 +33,8 @@ struct BlockHeader {
         };
         char data[12];
     };
+    BlockHeader(int idx, int begin, int len)
+        : piece_idx(idx), offset(begin), length(len) {}
 };
 
 const double SLEEP_INTERVAL   = 0.1;
@@ -50,7 +53,7 @@ void PeerClient::listen(BTClient* bt_client)
         int retval = bt_client->recvMsg(this, buffer, 5, 0);
         if (!retval) {
             // Sleep for a short time, prevent from using 100% CPU
-            this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+            this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
             continue;
         }
         if (retval < 0) {
@@ -115,7 +118,7 @@ void PeerClient::download(BTClient* bt_client)
 
     while (running && state() != UnconnectedState) {
         // Sleep for a short time, prevent from using 100% CPU
-        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
 
         // Break the loop if we've got all the pieces
         if (bt_client->bit_field.all()) break;
@@ -142,7 +145,7 @@ void PeerClient::download(BTClient* bt_client)
         // Wait until we've got the requested piece, no longer than 30s
         double time_out = 30.0 / SLEEP_INTERVAL;
         for (auto count = 0; count < time_out; ++count) {
-            this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+            this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
             if (p_status[idx] || !running) break;
         }
 
@@ -158,10 +161,6 @@ void PeerClient::start(BTClient* bt_client)
         [&]() { download(bt_client); }
     );
     upload_task.wait();
-//    thread in(mem_fn(&PeerClient::listen), this, bt_client);
-//    thread out(mem_fn(&PeerClient::download), this, bt_client);
-//    in.join();
-//    out.join();
     running = false;
 }
 

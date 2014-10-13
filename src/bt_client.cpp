@@ -16,9 +16,7 @@ using namespace clany;
 namespace {
 const ushort LISTEN_PORT       = 6768;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
-const int    BUF_LEN           = 1024;
 const int    HANDSHAKE_MSG_LEN = 68;
-const int    MSG_HEADER_LEN = 5;
 const double SLEEP_INTERVAL    = 0.3;
 
 const llong     FILE_CHUNK_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -174,11 +172,11 @@ void BTClient::listen(atm_bool& running)
 
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
-        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
         // Remove disconnected peer from connection list
         for (auto iter = connection_list.begin(); iter != connection_list.end();) {
             if (!(*iter)->isRunning()) {
-                this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+                this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
                 ATOMIC_PRINT("Disconnected from %s\n", (*iter)->peekAddress().c_str());
                 removePeerInfo((*iter)->getPeerInfo());
                 iter = connection_list.erase(iter);
@@ -208,7 +206,7 @@ void BTClient::initiate(atm_bool& running)
 {
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
-        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
         if (connection_list.size() >= max_connections) continue;
 
         // Iterate peer list to find available connection
@@ -325,7 +323,7 @@ int BTClient::recvMsg(const TCPSocket* client_sock, char* buffer,
     for (;;) {
         // Wait for incoming handshake message
         if (++count > max_count) return 0;
-        this_thread::sleep_for(tick_count::interval_t(SLEEP_INTERVAL));
+        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
         if (!hasIncomingData(client_sock)) continue;
 
         int num_bytes = 0;
