@@ -76,10 +76,10 @@ public:
     void cancelRequest(int piece, int offset, int length) const;
     // piece: <len=0009+X><id=7><index><begin><block>
     void sendBlock(int piece, int offset, const ByteArray& data) const;
-    void sendBlock(const ByteArray& request_msg, const ByteArray& data) const;
 
     void setBitField(const ByteArray& buffer);
     void updatePiece(const ByteArray& buffer);
+    void handleRequest(const ByteArray& buffer, BTClient* bt_client) const;
 
 private:
     const MetaInfo& torrent_info;

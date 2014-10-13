@@ -76,7 +76,7 @@ void PeerClient::listen(BTClient* bt_client)
             updatePiece(buffer);
             break;
         case PeerClient::REQUEST:
-            sendBlock(buffer, bt_client->getBlock(buffer));
+            handleRequest(buffer, bt_client);
             break;
         case PeerClient::CANCEL:
             // Cancel download task
@@ -95,7 +95,7 @@ void PeerClient::listen(BTClient* bt_client)
             if (bt_client->validatePiece(piece, piece_idx)) {
                 sendPieceUpdate(piece_idx);
                 ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
-                piece_idx, peekAddress(),
+                piece_idx, peekAddress().c_str(),
                 100.0 * bt_client->bit_field.count() / torrent_info.num_pieces);
             };
 
@@ -207,16 +207,24 @@ void PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
     write(msg);
 }
 
-void PeerClient::sendBlock(const ByteArray& request_msg, const ByteArray& data) const
+void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client) const
 {
+    auto data = bt_client->getBlock(request_msg);
+
     auto blk_header = reinterpret_cast<const int*>(request_msg.data());
     int piece_idx   = blk_header[0];
     int offset      = blk_header[1];
     int length      = blk_header[2];
     if (data.empty()) {
-        cancelRequest(piece_idx, offset, length);
+        thread cancel([&]() {
+            sendBlock(piece_idx, offset, length);
+        });
+        cancel.detach();
     } else {
-        sendBlock(piece_idx, offset, data);
+        thread send([&, data]() {
+            sendBlock(piece_idx, offset, data);
+        });
+        send.detach();
     }
 }
 
