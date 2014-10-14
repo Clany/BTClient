@@ -91,8 +91,10 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         default:
             ATOMIC_PRINT("Unknown message ID\n");
+            disconnect();
             break;
         }
+
         if (piece.size() == (size_t)torrent_info.piece_length ||
             piece_idx == torrent_info.num_pieces - 1) {
             if (bt_client->validatePiece(piece, piece_idx)) {
