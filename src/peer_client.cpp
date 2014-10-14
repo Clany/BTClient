@@ -11,6 +11,9 @@ using namespace clany;
   printf((format), ##__VA_ARGS__); \
 }
 
+#define THREAD_SLEEP(interval) \
+  this_tbb_thread::sleep(tick_count::interval_t((interval)))
+
 namespace {
 struct MsgHeader {
     union {
@@ -49,13 +52,14 @@ void PeerClient::listen(BTClient* bt_client)
     int piece_idx = -1;
     ByteArray piece;
     while (running && state() != UnconnectedState) {
+        THREAD_SLEEP(SLEEP_INTERVAL);
+
+        if (am_choking) continue;
+
         ByteArray buffer;
         int retval = bt_client->recvMsg(this, buffer, 5, 0);
-        if (!retval) {
-            // Sleep for a short time, prevent from using 100% CPU
-            this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
-            continue;
-        }
+        if (!retval) continue;
+
         if (retval < 0) {
             disconnect();
             break;
@@ -72,11 +76,23 @@ void PeerClient::listen(BTClient* bt_client)
         }
 
         switch (msg_id) {
-        case PeerClient::BITFIELD:
-            setBitField(buffer);
+        case PeerClient::CHOKE:
+            peer_choking = true;
+            break;
+        case PeerClient::UNCHOKE:
+            peer_choking = false;
+            break;
+        case PeerClient::INTERESTED:
+            peer_interested = true;
+            break;
+        case PeerClient::NOT_INTERESTED:
+            peer_interested = false;
             break;
         case PeerClient::HAVE:
-            updatePiece(buffer);
+            updatePiece(buffer, bt_client->needed_piece);
+            break;
+        case PeerClient::BITFIELD:
+            setBitField(buffer, bt_client->needed_piece);
             break;
         case PeerClient::REQUEST:
             handleRequest(buffer, bt_client);
@@ -121,13 +137,12 @@ void PeerClient::request(BTClient* bt_client)
     auto& idx_vec = bt_client->needed_piece;
 
     while (running && state() != UnconnectedState) {
-        // Sleep for a short time, prevent from using 100% CPU
-        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
+        THREAD_SLEEP(SLEEP_INTERVAL);
 
         // Break the loop if we've got all the pieces
         if (bt_client->bit_field.all()) break;
 
-        if (!piece_avail) continue;
+        if (peer_choking || !am_interested) continue;
 
         // Find a piece to download
         auto idx_iter = find_if(idx_vec.begin(), idx_vec.end(), [this, &p_status](int idx) {
@@ -146,10 +161,10 @@ void PeerClient::request(BTClient* bt_client)
             }
         }
 
-        // Wait until we've got the requested piece, no longer than 30s
-        double time_out = 30.0 / SLEEP_INTERVAL;
+        // Wait until we've got the requested piece, no longer than 20s
+        double time_out = 20.0 / SLEEP_INTERVAL;
         for (auto count = 0; count < time_out; ++count) {
-            this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
+            THREAD_SLEEP(SLEEP_INTERVAL);
             if (p_status[idx] || !running) break;
         }
 
@@ -164,6 +179,32 @@ void PeerClient::start(BTClient* bt_client)
     peer_task.run([&]() { request(bt_client); });
     wait();
     stop();
+}
+
+bool PeerClient::sendChoke(bool choking) const
+{
+    ByteArray msg;
+    if (choking) {
+        MsgHeader msg_header {1, CHOKE};
+        msg = ByteArray(msg_header.data, 5);
+    }
+
+    MsgHeader msg_header {1, UNCHOKE};
+    msg = ByteArray(msg_header.data, 5);
+    return write(msg);
+}
+
+bool PeerClient::sendInterested(bool interested) const
+{
+    ByteArray msg;
+    if (interested) {
+        MsgHeader msg_header {1, INTERESTED};
+        msg = ByteArray(msg_header.data, 5);
+    }
+
+    MsgHeader msg_header {1, NOT_INTERESTED};
+    msg = ByteArray(msg_header.data, 5);
+    return write(msg);
 }
 
 bool PeerClient::sendPieceUpdate(int piece) const
@@ -226,16 +267,31 @@ void PeerClient::handleRequest(const ByteArray& request_msg, BTClient* bt_client
     }
 }
 
-void PeerClient::setBitField(const ByteArray& buffer)
+void PeerClient::setBitField(const ByteArray& buffer, const vector<int>& needed_piece)
 {
     size_t bf_sz = torrent_info.num_pieces;
     bit_field.fromByteArray(bf_sz, buffer);
-    piece_avail = true;
+
+    auto iter = find_if(needed_piece.begin(), needed_piece.end(), [this](int idx) {
+        return bit_field.test(idx);
+    });
+    if (iter != needed_piece.end()) am_interested = true;
+
+    sendInterested(am_interested);
 }
 
-void PeerClient::updatePiece(const ByteArray& buffer)
+void PeerClient::updatePiece(const ByteArray& buffer, const vector<int>& needed_piece)
 {
-    piece_avail = true;
     int idx = *reinterpret_cast<const int*>(buffer.data());
     bit_field[idx] = 1;
+
+    if (!am_interested) {
+        auto iter = find_if(needed_piece.begin(), needed_piece.end(), [this](int idx) {
+            return bit_field.test(idx);
+        });
+        if (iter != needed_piece.end()) {
+            am_interested = true;
+            sendInterested(am_interested);
+        }
+    }
 }

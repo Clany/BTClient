@@ -17,7 +17,7 @@ struct CmdArgs {
     vector<string> peers = {};
 };
 
-inline void printLineSep(int len = 80)
+inline void printLineSep(int len = 79)
 {
     cout << string(len, '-') << endl;
 }
@@ -39,13 +39,8 @@ inline void usage(ostream& file)
 
 inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
 {
-//    int n_peers = 0;
-
-//     //null out file pointers
-//     bt_args.f_save = NULL;
-//
-//     //default lag file
-//     strncpy(bt_args.log_file, "bt-client.log", FILE_NAME_MAX);
+    //default log file
+    bt_args.log_file = "bt-client.log";
 
     CmdLineParser cmd_parser(argc, argv, "hp:s:l:vI:");
     int ch = 0; //ch for each flag
@@ -96,15 +91,16 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
     if (bt_args.verbose) {
         cout.flags(ios::left);
         cout << "Arguments:" << endl;;
+        cout << setw(12) << "peer id"      << ": " << bt_args.id           << endl;
         cout << setw(12) << "verbose"      << ": " << bt_args.verbose      << endl;
         cout << setw(12) << "save_file"    << ": " << bt_args.save_file    << endl;
         cout << setw(12) << "log_file"     << ": " << bt_args.log_file     << endl;
         cout << setw(12) << "torrent_file" << ": " << bt_args.torrent_file << endl;
 
-//         for (i = 0; i < MAX_CONNECTIONS; i++) {
-//             if (bt_args.peers[i] != NULL)
-//                 print_peer(bt_args.peers[i]);
-//         }
+        cout << setw(12) << "peers" << ": " << endl;
+        for (const auto& peer : bt_args.peers) {
+            cout << peer << endl;
+        }
         printLineSep();
     }
 

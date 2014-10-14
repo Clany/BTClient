@@ -50,16 +50,19 @@ class PeerClient : public TCPSocket{
 
 public:
     using Ptr = shared_ptr<PeerClient>;
-    enum { HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
+    enum { CHOKE = 0, UNCHOKE = 1, INTERESTED = 2, NOT_INTERESTED = 3,
+           HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
 
     PeerClient(const MetaInfo& meta_info)
         : torrent_info(meta_info), bit_field(meta_info.num_pieces),
-          piece_avail(false) {
+          am_choking(false), am_interested(false),
+          peer_choking(true), peer_interested(false) {
         running = true;
     };
     PeerClient(const MetaInfo& meta_info, int sock, SockAddrIN addr, SockState state)
         : TCPSocket(sock, addr, state), torrent_info(meta_info),
-          bit_field(meta_info.num_pieces), piece_avail(false) {
+          bit_field(meta_info.num_pieces), am_choking(false), am_interested(false),
+          peer_choking(true), peer_interested(false) {
         running = true;
     }
 
@@ -80,6 +83,10 @@ public:
     bool isRunning() const { return running; }
 
     // Message protocals
+    // choke/unchoke: <len=0001><id=0/id=1>
+    bool sendChoke(bool choking) const;
+    // interested/not interested: <len=0001><id=2/id=3>
+    bool sendInterested(bool interested) const;
     // have: <len=0005><id=4><piece index>
     bool sendPieceUpdate(int piece) const;
     // bitfield: <len=0001+X><id=5><bitfield>
@@ -91,19 +98,21 @@ public:
     // piece: <len=0009+X><id=7><index><begin><block>
     bool sendBlock(int piece, int offset, const ByteArray& data) const;
 
-    void setBitField(const ByteArray& buffer);
-    void updatePiece(const ByteArray& buffer);
+    void setBitField(const ByteArray& buffer, const vector<int>& needed_piece);
+    void updatePiece(const ByteArray& buffer, const vector<int>& needed_piece);
     void handleRequest(const ByteArray& request_msg, BTClient* bt_client);
 
 private:
     const MetaInfo& torrent_info;
     atm_bool running;
-//    tbb::task_scheduler_init ts_init;
     tbb::task_group peer_task;
 
     Peer peer_info;
     BitField bit_field;
-    bool piece_avail;
+    bool am_choking;
+    bool am_interested;
+    bool peer_choking;
+    bool peer_interested;
 };
 
 inline bool operator==(const PeerClient& left, const PeerClient& right)
