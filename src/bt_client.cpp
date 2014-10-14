@@ -14,7 +14,6 @@ using namespace tbb;
 using namespace clany;
 
 namespace {
-const ushort LISTEN_PORT       = 6767;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
 const double SLEEP_INTERVAL    = 0.3;
@@ -164,13 +163,11 @@ auto BTClient::getIncomingPeer() const -> PeerClient::Ptr
 
 void BTClient::listen(atm_bool& running)
 {
-    if (!listen(LISTEN_PORT)) {
+    if (!listen(listenPort())) {
         ATOMIC_PRINT("Fail to establish peer searching task!\n");
         return;
     }
     ATOMIC_PRINT("Waiting for incoming request...\n");
-    // Set peer id to ip:port if not provided
-    if (pid.empty()) pid = tcp_socket.peekAddress() + ":" + to_string(LISTEN_PORT);
 
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU

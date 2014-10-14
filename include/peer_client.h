@@ -108,7 +108,8 @@ private:
 
 inline bool operator==(const PeerClient& left, const PeerClient& right)
 {
-    return left.peer_info.pid == right.peer_info.pid;
+    return left.peer_info.pid == right.peer_info.pid &&
+           left.peer_info.address == right.peer_info.address;
 }
 _CLANY_END
 

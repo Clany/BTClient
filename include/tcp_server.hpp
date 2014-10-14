@@ -37,6 +37,8 @@ public:
             return false;
         }
 
+        local_addr = host_address;
+        listen_port = port;
         tcp_socket.setState(TCPSocket::ListeningState);
         return true;
     }
@@ -48,6 +50,8 @@ public:
             return false;
         }
 
+        local_addr  = "0.0.0.0";
+        listen_port = port;
         tcp_socket.setState(TCPSocket::ListeningState);
         return true;
     }
@@ -64,9 +68,15 @@ public:
         max_queue_sz = num_connections;
     }
 
+    string  listenAddr() const { return local_addr; }
+    int16_t listenPort() const { return listen_port; }
+
 protected:
     TCPSocket tcp_socket;
     int max_queue_sz;
+
+    string local_addr;
+    uint16_t listen_port;
 };
 _CLANY_END
 
