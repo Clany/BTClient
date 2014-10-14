@@ -19,7 +19,7 @@ using namespace clany;
 namespace {
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
-const int    MAX_TRYING_NUM    = 3;
+const int    MAX_TRYING_NUM    = 5;
 const double SLEEP_INTERVAL    = 0.1;
 
 const llong     FILE_CHUNK_SIZE = 100 * 1024 * 1024; // 100 MB
@@ -169,7 +169,7 @@ void BTClient::listen(atm_bool& running)
     ATOMIC_PRINT("Waiting for incoming request...\n");
 
     while (running) {
-        // Sleep for 0.3s, prevent from using 100% CPU
+        // Sleep for a short time, prevent from using 100% CPU
         this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
 
         // Remove disconnected peer from connection list
@@ -208,8 +208,8 @@ void BTClient::listen(atm_bool& running)
 void BTClient::initiate(atm_bool& running)
 {
     while (running) {
-        // Sleep for 0.3s, prevent from using 100% CPU
-        this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
+        // Sleep for a short time, prevent from using 100% CPU
+        this_tbb_thread::sleep(tick_count::interval_t(1.0));
         if (connection_list.size() >= max_connections) continue;
 
         // Iterate peer list to find available connection

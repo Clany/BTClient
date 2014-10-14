@@ -54,6 +54,7 @@ void PeerClient::listen(BTClient* bt_client)
 {
     int piece_idx = -1;
     ByteArray piece;
+    int piece_width = to_string(torrent_info.num_pieces).size();
     while (running && state() != UnconnectedState) {
         THREAD_SLEEP(SLEEP_INTERVAL);
 
@@ -120,13 +121,14 @@ void PeerClient::listen(BTClient* bt_client)
             if (bt_client->validatePiece(piece, piece_idx)) {
                 bt_client->broadcastPU(piece_idx);
                 int piece_num = bt_client->bit_field.count();
-                ATOMIC_PRINT("Piece %d from %s download complete, progress: %.2f%%\n",
-                piece_idx, peekAddress().c_str(),
+                ATOMIC_PRINT("Piece %*d from %s:%d download complete, progress: %.2f%%\n",
+                piece_width, piece_idx, peekAddress().c_str(), port(),
                 100.0 *  piece_num / torrent_info.num_pieces);
                 if (piece_num == torrent_info.num_pieces)
                     ATOMIC_PRINT("Download complete\n");
             };
 
+            piece_idx = -1;
             piece.clear();
         }
     }
@@ -142,9 +144,6 @@ void PeerClient::request(BTClient* bt_client)
 
     while (running && state() != UnconnectedState) {
         THREAD_SLEEP(SLEEP_INTERVAL);
-
-        // Break the loop if we've got all the pieces
-        if (bt_client->bit_field.all()) break;
 
         if (peer_choking || !am_interested) continue;
 
