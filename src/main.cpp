@@ -21,6 +21,11 @@ int main(int argc, char* argv[])
         exit(1);
     };
 
+    if (!bt_client.setLogFile(bt_args.log_file)) {
+        cerr << "Failed to set log file" << endl;
+        exit(1);
+    }
+
     for (const auto& peer_addr : bt_args.peers) {
         auto sep = peer_addr.find(':');
         string ip = peer_addr.substr(0, sep);
@@ -29,7 +34,7 @@ int main(int argc, char* argv[])
     }
 
     if (bt_args.verbose) {
-        printTorrentFileInfo(bt_client.getMetaInfo());
+        printTorrentFileInfo(bt_client.getMetaInfo(), bt_args.log_file);
     }
 
     try {

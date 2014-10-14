@@ -13,13 +13,13 @@ struct CmdArgs {
     string save_file     = "";   // filename to save to
     string log_file      = "";   // log file name
     string torrent_file  = "";   // torrent file name
-    string id            = "";    // this bt_clients id
+    string id            = "";   // this bt_clients id
     vector<string> peers = {};
 };
 
-inline void printLineSep(int len = 79)
+inline void printLineSep(ostream& os = cout, int len = 79)
 {
-    cout << string(len, '-') << endl;
+    os << string(len, '-') << endl;
 }
 
 inline void usage(ostream& file)
@@ -39,27 +39,27 @@ inline void usage(ostream& file)
 
 inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
 {
-    //default log file
+    // default log file
     bt_args.log_file = "bt-client.log";
 
     CmdLineParser cmd_parser(argc, argv, "hp:s:l:vI:");
     int ch = 0; //ch for each flag
     while ((ch = cmd_parser.get()) != -1) {
         switch (ch) {
-        case 'h': //help
+        case 'h': // help
             usage(cout);
             exit(0);
             break;
-        case 'v': //verbose
+        case 'v': // verbose
             bt_args.verbose = 1;
             break;
-        case 's': //save file
+        case 's': // save file
             bt_args.save_file = cmd_parser.getArg<string>();
             break;
-        case 'l': //log file
+        case 'l': // log file
             bt_args.log_file = cmd_parser.getArg<string>();
             break;
-        case 'p': //peer
+        case 'p': // peer
             bt_args.peers.push_back(cmd_parser.getArg<string>());
             break;
         case 'I':
@@ -85,24 +85,28 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
         exit(1);
     }
 
-    //copy torrent file over
+    // copy torrent file over
     bt_args.torrent_file = argv[0];
 
-    if (bt_args.verbose) {
-        cout.flags(ios::left);
-        cout << "Arguments:" << endl;;
-        cout << setw(12) << "peer id"      << ": " << bt_args.id           << endl;
-        cout << setw(12) << "verbose"      << ": " << bt_args.verbose      << endl;
-        cout << setw(12) << "save_file"    << ": " << bt_args.save_file    << endl;
-        cout << setw(12) << "log_file"     << ": " << bt_args.log_file     << endl;
-        cout << setw(12) << "torrent_file" << ": " << bt_args.torrent_file << endl;
+    stringstream ss;
+    ss.flags(ios::left);
+    ss << "Arguments" << endl;
+    ss << setw(12) << "peer id"      << ": " << bt_args.id           << endl;
+    ss << setw(12) << "verbose"      << ": " << bt_args.verbose      << endl;
+    ss << setw(12) << "save_file"    << ": " << bt_args.save_file    << endl;
+    ss << setw(12) << "log_file"     << ": " << bt_args.log_file     << endl;
+    ss << setw(12) << "torrent_file" << ": " << bt_args.torrent_file << endl;
 
-        cout << setw(12) << "peers" << ": " << endl;
-        for (const auto& peer : bt_args.peers) {
-            cout << peer << endl;
-        }
-        printLineSep();
+    ss << setw(12) << "peers" << ": " << endl;
+    for (const auto& peer : bt_args.peers) {
+        ss << peer << endl;
     }
+    printLineSep(ss);
+
+    if (bt_args.verbose) cout << ss.str();
+
+    ofstream ofs(bt_args.log_file);
+    if (ofs) ofs << ss.str();
 
     return;
 }
@@ -117,24 +121,30 @@ inline string printHash(const string& hash) {
     return ss.str();
 };
 
-inline void printTorrentFileInfo(const MetaInfo& info)
+inline void printTorrentFileInfo(const MetaInfo& info, const string& log_file)
 {
-    cout.flags(ios::left);
-    cout << "Torrent info:" << endl;
-    cout << setw(12) << "Announce"     << ": " << info.announce             << endl
-         << setw(12) << "Name"         << ": " << info.name                 << endl
-         << setw(12) << "Length"       << ": " << info.length               << endl
-         << setw(12) << "Piece length" << ": " << info.piece_length         << endl
-         << setw(12) << "Num pieces"   << ": " << info.num_pieces           << endl
-         << setw(12) << "Info hash"    << ": " << printHash(info.info_hash) << endl;
+    stringstream ss;
+    ss.flags(ios::left);
+    ss << "Torrent info" << endl;
+    ss << setw(12) << "Announce"     << ": " << info.announce             << endl
+       << setw(12) << "Name"         << ": " << info.name                 << endl
+       << setw(12) << "Length"       << ": " << info.length               << endl
+       << setw(12) << "Piece length" << ": " << info.piece_length         << endl
+       << setw(12) << "Num pieces"   << ": " << info.num_pieces           << endl
+       << setw(12) << "Info hash"    << ": " << printHash(info.info_hash) << endl;
 
 #ifndef NDEBUG
-    cout << "Pieces:" << endl;
+    ss << "Pieces:" << endl;
     for (const auto& sha1 : info.sha1_vec) {
-        cout << printHash(sha1) << endl;
+        ss << printHash(sha1) << endl;
     }
 #endif
-    printLineSep();
+    printLineSep(ss);
+
+    cout << ss.str();
+
+    ofstream ofs(log_file, ios::app);
+    if (ofs) ofs << ss.str();
 }
 _CLANY_END
 

@@ -6,7 +6,10 @@
 
 #define ATOMIC_PRINT(format, ...) { \
   mutex::scoped_lock lock(print_mtx); \
-  printf((format), ##__VA_ARGS__); \
+  char buffer[256]; \
+  sprintf(buffer, (format), ##__VA_ARGS__); \
+  cout << buffer; \
+  log_file.second << buffer; \
 }
 
 using namespace std;

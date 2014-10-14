@@ -2,6 +2,7 @@
 #define BT_CLIENT_H
 
 #include <list>
+#include <fstream>
 #include <clany/clany_defs.h>
 #include "peer_client.h"
 #include "tcp_server.hpp"
@@ -77,6 +78,13 @@ public:
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
 
+    bool setLogFile(const string& file_name) {
+        log_file.first = file_name;
+        log_file.second.open(file_name, ios::app);
+        if (log_file.second) return true;
+        return false;
+    }
+
     void addPeerAddr(const string& address, ushort port) {
         peer_list.push_back({"", address, port, false, true, 0});
     }
@@ -101,7 +109,7 @@ private:
     vector<int> needed_piece;
 
     string save_name;
-    string log_name;
+    pair<string, ofstream> log_file;
 };
 _CLANY_END
 
