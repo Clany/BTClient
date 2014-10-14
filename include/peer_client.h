@@ -12,14 +12,16 @@ struct Peer
     string pid;
     string address;
     ushort port;
+
     bool is_connected;
+    bool is_available;
+    int  trying_num;
 };
 
 inline bool operator==(const Peer& left, const Peer& right)
 {
     return left.pid == right.pid &&
-           left.address == right.address &&
-           left.port == right.port;
+           left.address == right.address;
 }
 
 inline bool operator!=(const Peer& left, const Peer& right)

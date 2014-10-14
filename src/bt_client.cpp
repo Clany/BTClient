@@ -16,7 +16,8 @@ using namespace clany;
 namespace {
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
-const double SLEEP_INTERVAL    = 0.3;
+const int    MAX_TRYING_NUM    = 3;
+const double SLEEP_INTERVAL    = 0.1;
 
 const llong     FILE_CHUNK_SIZE = 100 * 1024 * 1024; // 100 MB
 const ByteArray FILE_CHUNK(FILE_CHUNK_SIZE);
@@ -98,11 +99,6 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
     DBGVAR(cout, bit_field);
 
     return true;
-}
-
-void BTClient::addPeerAddr(const string& address, ushort port)
-{
-    peer_list.push_back({"", address, port, false});
 }
 
 void BTClient::run()
@@ -215,7 +211,7 @@ void BTClient::initiate(atm_bool& running)
 
         // Iterate peer list to find available connection
         for (auto& peer : peer_list) {
-            if (peer.is_connected) continue;
+            if (peer.is_connected || !peer.is_available) continue;
             if (!running) break;
 
             auto peer_client = make_shared<PeerClient>(meta_info);
@@ -224,11 +220,22 @@ void BTClient::initiate(atm_bool& running)
                 continue;
             }
 
-            if (peer_client->connect(peer.address, peer.port) &&
-                handShake(peer_client.get(), true)) {
+            if (!peer_client->connect(peer.address, peer.port)) {
+                ATOMIC_PRINT("Peer not available: %s:%d, trying %d/%d\n",
+                             peer.address.c_str(), peer.port,
+                             ++peer.trying_num, MAX_TRYING_NUM);
+                if (peer.trying_num == MAX_TRYING_NUM) {
+                    ATOMIC_PRINT("Reach max trying number, delete peer from list\n");
+                    peer.is_available = false;
+                }
+                continue;
+            }
+
+            if (handShake(peer_client.get(), true)) {
                 // Save peer_info, skip if connection is duplicate
                 peer.pid = peer_client->getPeerInfo().pid;
                 peer.is_connected = true;
+                peer.trying_num   = 0;
                 if (!addPeerClient(peer_client)) continue;
 
                 ATOMIC_PRINT("Establish connection from %s:%d\n",

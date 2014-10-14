@@ -76,7 +76,10 @@ public:
     };
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
-    void addPeerAddr(const string& address, ushort port);
+
+    void addPeerAddr(const string& address, ushort port) {
+        peer_list.push_back({"", address, port, false, true, 0});
+    }
 
     auto getMetaInfo() -> const MetaInfo& { return meta_info; }
 

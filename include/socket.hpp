@@ -77,11 +77,11 @@ public:
         host_addr.sin_family = AF_INET;
         host_addr.sin_port   = port;
         if (!::inet_pton(AF_INET, host_address.c_str(), &host_addr.sin_addr)) {
-            cerr << "Invalid address, conversion failed" << endl;
+            if (verbose) cerr << "Invalid address, conversion failed" << endl;
             return false;
         }
         if (::bind(handle, (SockAddr*)&host_addr, sizeof(host_addr)) < 0) {
-            cerr << "Bind socket fail!" << endl;
+            if (verbose) cerr << "Bind socket fail!" << endl;
             return false;
         }
 
@@ -96,7 +96,7 @@ public:
         host_addr.sin_port   = port;
         host_addr.sin_addr.s_addr = htonl(INADDR_ANY);
         if (::bind(handle, (SockAddr*)&host_addr, sizeof(host_addr)) < 0) {
-            cerr << "Bind socket fail!" << endl;
+            if (verbose) cerr << "Bind socket fail!" << endl;
             return false;
         }
 
@@ -111,13 +111,13 @@ public:
 
         sock_state = HostLookupState;
         if (!::inet_pton(AF_INET, host_name.c_str(), &addr.sin_addr)) {
-            cerr << "Invalid address, conversion failed" << endl;
+            if (verbose) cerr << "Invalid address, conversion failed" << endl;
             sock_state = UnconnectedState;
             return false;
         }
         sock_state = ConnectingState;
         if (::connect(handle, (SockAddr*)&addr, sizeof(addr)) < 0) {
-            cerr << "Fail to connect to host!" << endl;
+            if (verbose) cerr << "Fail to connect to host!" << endl;
             sock_state = UnconnectedState;
             return false;
         }
@@ -173,6 +173,8 @@ protected:
     SOCKET handle;
     SockAddrIN addr;
     SockState sock_state;
+
+    bool verbose = false;
 };
 
 class TCPSocket : public AbstractSocket

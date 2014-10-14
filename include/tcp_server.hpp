@@ -33,7 +33,7 @@ public:
     bool listen(const string& host_address, uint16_t port) {
         if (!tcp_socket.bind(host_address, port)) return false;
         if (::listen(tcp_socket.sock(), max_queue_sz) < 0) {
-            cerr << "listen failed!" << endl;
+            if (verbose) cerr << "listen failed!" << endl;
             return false;
         }
 
@@ -46,7 +46,7 @@ public:
     bool listen(uint16_t port) {
         if (!tcp_socket.bind(port)) return false;
         if (::listen(tcp_socket.sock(), max_queue_sz) < 0) {
-            cerr << "listen failed!" << endl;
+            if (verbose) cerr << "listen failed!" << endl;
             return false;
         }
 
@@ -77,6 +77,8 @@ protected:
 
     string local_addr;
     uint16_t listen_port;
+
+    bool verbose = false;
 };
 _CLANY_END
 
