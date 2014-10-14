@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
     CmdArgs bt_args;
     parseArgs(bt_args, argc, argv);
 
-    BTClient bt_client(bt_args.id);
+    BTClient bt_client(bt_args.id, bt_args.port);
     if (!bt_client.setTorrent(bt_args.torrent_file, bt_args.save_file)) {
         cerr << "Input torrent file is invalid!" << endl;
         exit(1);

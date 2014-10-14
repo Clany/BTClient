@@ -241,7 +241,7 @@ void BTClient::initiate(atm_bool& running)
                 peer.trying_num   = 0;
                 if (!addPeerClient(peer_client)) continue;
 
-                ATOMIC_PRINT("Establish connection from %s:%d\n",
+                ATOMIC_PRINT("Establish connection to %s:%d\n",
                              peer.address.c_str(), peer.port);
                 peer_client->sendAvailPieces(bit_field);
 

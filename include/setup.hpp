@@ -14,6 +14,7 @@ struct CmdArgs {
     string log_file      = "";   // log file name
     string torrent_file  = "";   // torrent file name
     string id            = "";   // this bt_clients id
+    ushort port          = 6767; // listening port
     vector<string> peers = {};
 };
 
@@ -42,7 +43,7 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
     // default log file
     bt_args.log_file = "bt-client.log";
 
-    CmdLineParser cmd_parser(argc, argv, "hp:s:l:vI:");
+    CmdLineParser cmd_parser(argc, argv, "hvp:s:l:P:I:");
     int ch = 0; //ch for each flag
     while ((ch = cmd_parser.get()) != -1) {
         switch (ch) {
@@ -62,7 +63,10 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
         case 'p': // peer
             bt_args.peers.push_back(cmd_parser.getArg<string>());
             break;
-        case 'I':
+        case 'P': // listening port
+            bt_args.port = cmd_parser.getArg<ushort>();
+            break;
+        case 'I': // peer id
             bt_args.id = cmd_parser.getArg<string>();
             break;
         case ':':
