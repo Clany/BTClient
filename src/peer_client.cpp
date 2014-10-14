@@ -40,7 +40,7 @@ struct BlockHeader {
         : piece_idx(idx), offset(begin), length(len) {}
 };
 
-const double SLEEP_INTERVAL   = 0.1;
+const double SLEEP_INTERVAL   = 0.01;
 const int MSG_LEN_LIMIT       = 1024 * 1024;  // 1mb
 const size_t BLOCK_CHUNK_SIZE = 32 * 1024;   // 16kb
 
@@ -70,7 +70,7 @@ void PeerClient::listen(BTClient* bt_client)
         if (msg_len < 0 || msg_len > MSG_LEN_LIMIT) continue;
 
         buffer.resize(msg_len);
-        if (bt_client->recvMsg(this, buffer, msg_len) < 0) {
+        if (msg_len != 0 && bt_client->recvMsg(this, buffer, msg_len) < 0) {
             disconnect();
             break;
         }
@@ -84,6 +84,7 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         case PeerClient::INTERESTED:
             peer_interested = true;
+            sendChoke(am_choking);
             break;
         case PeerClient::NOT_INTERESTED:
             peer_interested = false;
@@ -200,10 +201,11 @@ bool PeerClient::sendInterested(bool interested) const
     if (interested) {
         MsgHeader msg_header {1, INTERESTED};
         msg = ByteArray(msg_header.data, 5);
+    } else {
+        MsgHeader msg_header {1, NOT_INTERESTED};
+        msg = ByteArray(msg_header.data, 5);
     }
 
-    MsgHeader msg_header {1, NOT_INTERESTED};
-    msg = ByteArray(msg_header.data, 5);
     return write(msg);
 }
 
