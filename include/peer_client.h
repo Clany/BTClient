@@ -103,6 +103,11 @@ private:
     BitField bit_field;
     bool piece_avail;
 };
+
+inline bool operator==(const PeerClient& left, const PeerClient& right)
+{
+    return left.getPeerInfo() == right.getPeerInfo();
+}
 _CLANY_END
 
 #endif // PEER_CLIENT_H

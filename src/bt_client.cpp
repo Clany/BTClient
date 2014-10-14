@@ -14,7 +14,7 @@ using namespace tbb;
 using namespace clany;
 
 namespace {
-const ushort LISTEN_PORT       = 6768;
+const ushort LISTEN_PORT       = 6767;
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
 const double SLEEP_INTERVAL    = 0.3;
@@ -192,10 +192,12 @@ void BTClient::listen(atm_bool& running)
 
         auto peer_client = getIncomingPeer();
         if (peer_client && handShake(peer_client.get(), false)) {
+            // Skip if connection is duplicate
+            if (!addPeerClient(peer_client)) continue;
+
             ATOMIC_PRINT("Accept connection from %s\n",
                          peer_client->peekAddress().c_str());
             peer_client->sendAvailPieces(bit_field);
-            addPeerClient(peer_client);
 
             // Start torrent task for this connection
             torrent_task.run([this, &peer_client]() {
@@ -225,11 +227,13 @@ void BTClient::initiate(atm_bool& running)
 
             if (peer_client->connect(peer.address, peer.port) &&
                 handShake(peer_client.get(), true)) {
+                // Save peer_info, skip if connection is duplicate
+                peer = peer_client->getPeerInfo();
+                if (!addPeerClient(peer_client)) continue;
+
                 ATOMIC_PRINT("Establish connection from %s:%d\n",
                              peer.address.c_str(), peer.port);
                 peer_client->sendAvailPieces(bit_field);
-                addPeerClient(peer_client);
-                peer = peer_client->getPeerInfo();
 
                 // Start torrent task for this connection
                 torrent_task.run([this, &peer_client]() {
@@ -241,10 +245,14 @@ void BTClient::initiate(atm_bool& running)
     }
 }
 
-void BTClient::addPeerClient(PeerClient::Ptr peer_client)
+bool BTClient::addPeerClient(PeerClient::Ptr peer_client)
 {
     mutex::scoped_lock lock(connection_mtx);
+    for (const auto& peer : connection_list) {
+        if (*peer == *peer_client) return false;
+    }
     connection_list.push_back(peer_client);
+    return true;
 }
 
 void BTClient::addPeerInfo(const Peer& peer)

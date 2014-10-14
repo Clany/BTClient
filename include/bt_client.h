@@ -35,9 +35,9 @@ class BTClient : public TCPServer {
     using TCPServer::listen;
     void listen(atm_bool& running);
     void initiate(atm_bool& running);
-    void addPeerClient(PeerClient::Ptr peer_client);
-    void removePeerClient(PeerClient::Ptr peer_client);
+    bool addPeerClient(PeerClient::Ptr peer_client);
     void addPeerInfo(const Peer& peer);
+    void removePeerClient(PeerClient::Ptr peer_client);
     void removePeerInfo(const Peer& peer);
 
     // Mange torrent task

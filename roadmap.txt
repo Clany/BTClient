@@ -2,16 +2,14 @@ Done:
 Read and parse a torrent file
 Setup transferring, include handshake protocol, info-hash
 Write downloaded pieces to preallocated file on disk
+Sending request message
+Maintaining a peer list
+Transfer multiple pieces at the same time, calculate SHA-1 of downloaded piece (TBB, C++11 thread)
+Drop connection if didn't receive any message from initiator after 2s
+Error handling
 
 To do:
- - Basic: Sending request message
-          Maintaining a peer list
-          Transfer multiple pieces at the same time, calculate SHA-1 of downloaded piece (TBB, C++11 thread)
-          Error handling
-          Drop connection if didn't receive any message from initiator after 2s
-
  - Other: Configure connection state (choked and unchoked)
-          Upload and download at the same time
           Fetch information from tracker server
           Estimate transfer speed and set top N unchoked connections
           Handle multi-file torrent

@@ -1,4 +1,4 @@
-Project 1: netcat_part
+Project 2: BitTorrent Client
 -----------------------
 
 Name: Song, Tiangang
@@ -8,3 +8,9 @@ Name: An, Shi
 uname:anshi
 
 ------------------------
+
+Feature list:
+ - Available on Windows, Linux and OS X platform
+ - Support N (<=4) peers simultaneously download/upload
+ - Press q any time to quite the program
+ - Resume the torrent task from where left (last quit)
