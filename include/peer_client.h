@@ -43,6 +43,8 @@ class PeerClient : public TCPSocket{
     using atm_bool = tbb::atomic<bool>;
     using atm_int = tbb::atomic<int>;
 
+    friend bool operator==(const PeerClient& left, const PeerClient& right);
+
     void listen(BTClient* bt_client);
     void request(BTClient* bt_client);
 
@@ -106,7 +108,7 @@ private:
 
 inline bool operator==(const PeerClient& left, const PeerClient& right)
 {
-    return left.getPeerInfo() == right.getPeerInfo();
+    return left.peer_info.pid == right.peer_info.pid;
 }
 _CLANY_END
 

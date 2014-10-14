@@ -169,6 +169,8 @@ void BTClient::listen(atm_bool& running)
         return;
     }
     ATOMIC_PRINT("Waiting for incoming request...\n");
+    // Set peer id to ip:port if not provided
+    if (pid.empty()) pid = tcp_socket.peekAddress() + ":" + to_string(LISTEN_PORT);
 
     while (running) {
         // Sleep for 0.3s, prevent from using 100% CPU
@@ -228,7 +230,8 @@ void BTClient::initiate(atm_bool& running)
             if (peer_client->connect(peer.address, peer.port) &&
                 handShake(peer_client.get(), true)) {
                 // Save peer_info, skip if connection is duplicate
-                peer = peer_client->getPeerInfo();
+                peer.pid = peer_client->getPeerInfo().pid;
+                peer.is_connected = true;
                 if (!addPeerClient(peer_client)) continue;
 
                 ATOMIC_PRINT("Establish connection from %s:%d\n",
