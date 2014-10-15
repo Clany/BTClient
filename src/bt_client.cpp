@@ -77,11 +77,6 @@ bool BTClient::TmpFile::read(size_t idx, size_t length, ByteArray& data) const
 // BTClient interface
 bool BTClient::setTorrent(const string& torrent_name, const string& save_file_name)
 {
-    //////////////////////////////////////////////////////////////////////////////////////////
-    // Hard code parameters
-    max_connections = 4;
-    //////////////////////////////////////////////////////////////////////////////////////////
-
     if (!download_file.empty()) {
         cerr << "Torrent already set!" << endl;
         return false;
@@ -107,6 +102,10 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
 void BTClient::run()
 {
     ATOMIC_PRINT("Starting Main Loop, press q/Q to exit the program\n");
+    if (bit_field.all()) {
+        is_complete = true;
+        ATOMIC_PRINT("Already have the file, now seeding\n");
+    }
 
     atomic<bool> running[2];
     fill(begin(running), end(running), true);
@@ -172,6 +171,13 @@ void BTClient::listen(atm_bool& running)
         // Sleep for a short time, prevent from using 100% CPU
         this_tbb_thread::sleep(tick_count::interval_t(SLEEP_INTERVAL));
 
+        // When download complete, drop connection from seeders
+        if (is_complete) {
+            for (const auto& peers : connection_list) {
+                if (peers->isSeeder()) peers->stop();
+            }
+        }
+
         // Remove disconnected peer from connection list
         for (auto iter = connection_list.begin(); iter != connection_list.end();) {
             if (!(*iter)->isRunning()) {
@@ -193,8 +199,8 @@ void BTClient::listen(atm_bool& running)
             // Skip if connection is duplicate
             if (!addPeerClient(peer_client)) continue;
 
-            ATOMIC_PRINT("Accept connection from %s\n",
-                         peer_client->peekAddress().c_str());
+            ATOMIC_PRINT("Accept connection from %s:%d\n",
+                         peer_client->peekAddress().c_str(), peer_client->port());
             peer_client->sendAvailPieces(bit_field);
 
             // Start torrent task for this connection
@@ -207,7 +213,7 @@ void BTClient::listen(atm_bool& running)
 
 void BTClient::initiate(atm_bool& running)
 {
-    while (running) {
+    while (running && !is_complete) {
         // Sleep for a short time, prevent from using 100% CPU
         this_tbb_thread::sleep(tick_count::interval_t(1.0));
         if (connection_list.size() >= max_connections) continue;
@@ -215,7 +221,7 @@ void BTClient::initiate(atm_bool& running)
         // Iterate peer list to find available connection
         for (auto& peer : peer_list) {
             if (peer.is_connected || !peer.is_available) continue;
-            if (!running) break;
+            if (!running || is_complete) break;
 
             auto peer_client = make_shared<PeerClient>(meta_info);
             if (!peer_client->isValid()) {

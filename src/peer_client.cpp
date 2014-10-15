@@ -67,7 +67,7 @@ void PeerClient::listen(BTClient* bt_client)
         if (!retval) continue;
 
         if (retval < 0) {
-            disconnect();
+            stop();
             break;
         }
 
@@ -75,13 +75,13 @@ void PeerClient::listen(BTClient* bt_client)
         uchar msg_id = buffer[4];
         if (msg_len < 0 || msg_len > MSG_SIZE_LIMITE) {
             ATOMIC_PRINT("Message header is invalid\n");
-            disconnect();
+            stop();
             break;
         }
 
         buffer.resize(msg_len);
         if (msg_len != 0 && bt_client->recvMsg(this, buffer, msg_len) < 0) {
-            disconnect();
+            stop();
             break;
         }
 
@@ -118,7 +118,7 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         default:
             ATOMIC_PRINT("Unknown message ID\n");
-            disconnect();
+            stop();
             break;
         }
 
@@ -131,8 +131,10 @@ void PeerClient::listen(BTClient* bt_client)
                 ATOMIC_PRINT("Piece %*d from %s:%5d download complete, progress: %.2f%%\n",
                 piece_width, piece_idx, peekAddress().c_str(), port(),
                 100.0 *  piece_num / torrent_info.num_pieces);
-                if (piece_num == torrent_info.num_pieces)
-                    ATOMIC_PRINT("Download complete\n");
+                if (piece_num == torrent_info.num_pieces) {
+                    ATOMIC_PRINT("Download complete, now seeding. Press q/Q to quit\n");
+                    bt_client->is_complete = true;
+                }
             };
 
             piece_idx = -1;

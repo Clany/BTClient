@@ -70,7 +70,7 @@ public:
     using Ptr = shared_ptr<BTClient>;
 
     BTClient(const string& peer_id, int16_t port = 6767)
-        : ts_init(16), pid(peer_id) {
+        : max_connections(4), ts_init(16), pid(peer_id) {
         // Set peer id to bt_client:port if not provided
         listen_port = port;
         if (pid.empty()) pid = string("bt_client") + ":" + to_string(listen_port);
@@ -110,6 +110,8 @@ private:
 
     string save_name;
     pair<string, ofstream> log_file;
+
+    bool is_complete = false;
 };
 _CLANY_END
 

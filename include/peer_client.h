@@ -83,6 +83,7 @@ public:
     void stop() { running = false; }
     void wait() { peer_task.wait(); }
     bool isRunning() const { return running; }
+    bool isSeeder()  const { return bit_field.all(); }
 
     // Message protocals
     // choke/unchoke: <len=0001><id=0/id=1>
