@@ -29,7 +29,7 @@ public:
 private:
     bool parseString(string& str);
     bool parseInteger(llong& number);
-    bool parseList();
+    bool parseList(string& str);
     bool parseDictionry(Dict& dict);
 
     void fillMetaInfo(const Dict& info_dict, MetaInfo& meta_info);

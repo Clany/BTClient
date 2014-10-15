@@ -63,9 +63,32 @@ bool MetaInfoParser::parseInteger(llong& number)
     return true;
 }
 
-bool MetaInfoParser::parseList()
+// Put all list content in a string without parsing
+bool MetaInfoParser::parseList(string& str)
 {
-    // TODO
+    if (file_data[idx] != 'l') return false;
+    int start_idx = ++idx;
+
+    int e_occur = 1;
+    while (e_occur) {
+        char c = file_data[idx];
+        if (c == 'd' || c == 'l') {
+            ++idx;
+            ++e_occur;
+        } else if (c == 'e') {
+            ++idx;
+            --e_occur;
+        } else if (c == 'i') {
+            llong num;
+            parseInteger(num);
+        } else {
+            string tmp;
+            parseString(tmp);
+        }
+    }
+    int len = idx - 1 - start_idx; // omit last 'e'
+    str = file_data.sub(start_idx, len);
+
     return true;
 }
 
@@ -98,10 +121,13 @@ bool MetaInfoParser::parseDictionry(Dict& dict)
 
         string name;
         llong  number;
+        string list;
         if (parseString(name)) {
             dict.insert({key, name});
         } else if (parseInteger(number)) {
             dict.insert({key, to_string(number)});
+        } else if (parseList(list)) {
+            dict.insert({key, list});
         } else {
             return false;
         }
