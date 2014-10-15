@@ -21,9 +21,7 @@ const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
 const int    MAX_TRYING_NUM    = 5;
 const double SLEEP_INTERVAL    = 0.1;
-
-const llong     FILE_CHUNK_SIZE = 100 * 1024 * 1024; // 100 MB
-const ByteArray FILE_CHUNK(FILE_CHUNK_SIZE);
+const llong  FILE_CHUNK_SIZE   = 100 * 1024 * 1024; // 100 MB
 
 const uint SEED = random_device()();
 auto  rd_engine = default_random_engine(SEED);
@@ -41,8 +39,9 @@ bool BTClient::TmpFile::create(const string& file_name, llong file_size)
     ofstream ofs(fname, ios::binary);
     if (!ofs) return false;
 
+    const ByteArray file_chunk(FILE_CHUNK_SIZE);
     for (auto i = 0u; i < fsize / FILE_CHUNK_SIZE; ++i) {
-        ofs.write(FILE_CHUNK.data(), FILE_CHUNK_SIZE);
+        ofs.write(file_chunk.data(), FILE_CHUNK_SIZE);
     }
     int rest_size = file_size % FILE_CHUNK_SIZE;
     ofs.write(ByteArray(rest_size).data(), rest_size);
