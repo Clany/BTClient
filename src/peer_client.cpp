@@ -44,7 +44,7 @@ struct BlockHeader {
 };
 
 const double SLEEP_INTERVAL   = 0.01;
-const int MSG_LEN_LIMIT       = 1024 * 1024;  // 1mb
+const int MSG_SIZE_LIMITE = 1024 * 1024;  // 1mb
 const size_t BLOCK_CHUNK_SIZE = 32 * 1024;   // 16kb
 
 tbb::mutex print_mtx;
@@ -53,6 +53,8 @@ tbb::mutex print_mtx;
 void PeerClient::listen(BTClient* bt_client)
 {
     int piece_idx = -1;
+    int last_piece_len = static_cast<int>(torrent_info.length -
+                        (torrent_info.num_pieces - 1) * torrent_info.piece_length);
     ByteArray piece;
     int piece_width = to_string(torrent_info.num_pieces).size();
     while (running && state() != UnconnectedState) {
@@ -71,7 +73,11 @@ void PeerClient::listen(BTClient* bt_client)
 
         int   msg_len = *reinterpret_cast<int*>(buffer.data()) - 1;
         uchar msg_id = buffer[4];
-        if (msg_len < 0 || msg_len > MSG_LEN_LIMIT) continue;
+        if (msg_len < 0 || msg_len > MSG_SIZE_LIMITE) {
+            ATOMIC_PRINT("Message header is invalid\n");
+            disconnect();
+            break;
+        }
 
         buffer.resize(msg_len);
         if (msg_len != 0 && bt_client->recvMsg(this, buffer, msg_len) < 0) {
@@ -116,12 +122,13 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         }
 
-        if (piece.size() == (size_t)torrent_info.piece_length ||
-            piece_idx == torrent_info.num_pieces - 1) {
+        if (piece_idx == torrent_info.num_pieces - 1 &&
+            piece.size() == (size_t)last_piece_len ||
+            piece.size() == (size_t)torrent_info.piece_length) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 bt_client->broadcastPU(piece_idx);
                 int piece_num = bt_client->bit_field.count();
-                ATOMIC_PRINT("Piece %*d from %s:%d download complete, progress: %.2f%%\n",
+                ATOMIC_PRINT("Piece %*d from %s:%5d download complete, progress: %.2f%%\n",
                 piece_width, piece_idx, peekAddress().c_str(), port(),
                 100.0 *  piece_num / torrent_info.num_pieces);
                 if (piece_num == torrent_info.num_pieces)
@@ -157,7 +164,12 @@ void PeerClient::request(BTClient* bt_client)
 
         // Send download request, handle last piece separately
         if (idx == torrent_info.num_pieces - 1) {
-            requestBlock(idx, 0, last_piece_len);
+            uint iter_num = last_piece_len / BLOCK_CHUNK_SIZE;
+            for (auto i = 0u; i < iter_num; ++i) {
+                requestBlock(idx, i*BLOCK_CHUNK_SIZE, BLOCK_CHUNK_SIZE);
+            }
+            uint final_len = last_piece_len % BLOCK_CHUNK_SIZE;
+            requestBlock(idx, last_piece_len - final_len, final_len);
         } else {
             for (auto i = 0u; i < blocks_per_piece; ++i) {
                 requestBlock(idx, i*BLOCK_CHUNK_SIZE, BLOCK_CHUNK_SIZE);
@@ -168,7 +180,7 @@ void PeerClient::request(BTClient* bt_client)
         double time_out = 20.0 / SLEEP_INTERVAL;
         for (auto count = 0; count < time_out; ++count) {
             THREAD_SLEEP(SLEEP_INTERVAL);
-            if (p_status[idx] || !running) break;
+            if (p_status[idx] || !running || state() == UnconnectedState) break;
         }
 
         // Revert piece status if we didn't get that piece

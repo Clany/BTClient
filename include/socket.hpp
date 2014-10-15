@@ -132,6 +132,15 @@ public:
 
     bool isValid() const { return handle >= 0; }
 
+    bool hasData() const {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(handle, &read_fds);
+        timeval no_block {0, 0};
+
+        return ::select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
+    }
+
     virtual bool write(const string& message) const {
         return write(message.c_str(), message.length());
     }
