@@ -27,7 +27,8 @@ public:
         FD_SET(tcp_socket.sock(), &read_fds);
         timeval no_block {0, 0};
 
-        return ::select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
+        return ::select(tcp_socket.sock() + 1, &read_fds,
+                        nullptr, nullptr, &no_block) > 0;
     }
 
     bool listen(const string& host_address, uint16_t port) {

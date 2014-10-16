@@ -4,7 +4,7 @@
 
 using namespace std;
 using namespace tbb;
-using namespace clany;
+using namespace cls;
 
 #ifdef _WIN32
 INIT_WINSOCK

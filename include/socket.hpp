@@ -138,7 +138,7 @@ public:
         FD_SET(handle, &read_fds);
         timeval no_block {0, 0};
 
-        return ::select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
+        return ::select(handle + 1, &read_fds, nullptr, nullptr, &no_block) > 0;
     }
 
     virtual bool write(const string& message) const {

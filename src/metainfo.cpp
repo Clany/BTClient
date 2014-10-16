@@ -2,7 +2,7 @@
 #include "metainfo.h"
 
 using namespace std;
-using namespace clany;
+using namespace cls;
 
 bool MetaInfoParser::parse(const ByteArray& data, MetaInfo& meta_info)
 {

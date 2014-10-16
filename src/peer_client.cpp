@@ -4,7 +4,7 @@
 
 using namespace std;
 using namespace tbb;
-using namespace clany;
+using namespace cls;
 
 #define ATOMIC_PRINT(format, ...) { \
   mutex::scoped_lock lock(print_mtx); \
@@ -21,12 +21,12 @@ namespace {
 struct MsgHeader {
     union {
         struct {
-            uint  length;
+            int   length;
             uchar msg_id;
         };
         char data[5];
     };
-    MsgHeader(uint len, uchar id)
+    MsgHeader(int len, uchar id)
         : length(len), msg_id(id) {}
 };
 
@@ -122,8 +122,8 @@ void PeerClient::listen(BTClient* bt_client)
             break;
         }
 
-        if (piece_idx == torrent_info.num_pieces - 1 &&
-            piece.size() == (size_t)last_piece_len ||
+        if ((piece_idx == torrent_info.num_pieces - 1 &&
+            piece.size() == (size_t)last_piece_len) ||
             piece.size() == (size_t)torrent_info.piece_length) {
             if (bt_client->validatePiece(piece, piece_idx)) {
                 bt_client->broadcastPU(piece_idx);
@@ -239,7 +239,7 @@ bool PeerClient::sendAvailPieces(const BitField& bit_field) const
     if (bit_field.none()) return false;
 
     ByteArray payload    {bit_field.toByteArray()};
-    MsgHeader msg_header {1 + payload.size(), BITFIELD};
+    MsgHeader msg_header {1 + static_cast<int>(payload.size()), BITFIELD};
     auto msg = ByteArray(msg_header.data, 5) + payload;
     return write(msg);
 }
@@ -262,7 +262,7 @@ bool PeerClient::cancelRequest(int piece, int offset, int length) const
 
 bool PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
 {
-    MsgHeader   msg_header {9 + data.size(), PIECE};
+    MsgHeader   msg_header {9 + static_cast<int>(data.size()), PIECE};
     BlockHeader blk_header {piece, offset, 0};
     auto msg = ByteArray(msg_header.data, 5) + ByteArray(blk_header.data, 8) + data;
     return write(msg);

@@ -25,7 +25,7 @@
 #ifndef CLANY_MACROS_H
 #define CLANY_MACROS_H
 
-#define _CLANY_BEGIN	namespace clany {
+#define _CLANY_BEGIN	namespace cls {
 #define _CLANY_END		}
 
 #if defined CLANYAPI_EXPORTS

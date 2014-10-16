@@ -1,7 +1,7 @@
 #include <random>
 #include <openssl/sha.h>
 #include <clany/file_operation.hpp>
-#include <clany/timer.hpp>
+#include <clany/algorithm.hpp>
 #include "bt_client.h"
 
 #define ATOMIC_PRINT(format, ...) { \
@@ -14,7 +14,7 @@
 
 using namespace std;
 using namespace tbb;
-using namespace clany;
+using namespace cls;
 
 namespace {
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
@@ -131,15 +131,16 @@ void BTClient::run()
         // Exit the program if user press q/Q
         if (input_str.size() == 1 && (c == 'q' || c == 'Q')) {
             fill(begin(running), end(running), false);
-            for (auto& peer : connection_list) peer->stop();
-            // Wait for all tasks to terminate
-            search_peers.wait();
-            torrent_task.wait();
+            for_each(connection_list, mem_fn(&PeerClient::stop));
             break;
         } else {
             ATOMIC_PRINT("Invalid input\n");
         }
     }
+
+    // Wait for all tasks to terminate
+    search_peers.wait();
+    torrent_task.wait();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -203,7 +204,7 @@ void BTClient::listen(atm_bool& running)
             peer_client->sendAvailPieces(bit_field);
 
             // Start torrent task for this connection
-            torrent_task.run([this, &peer_client]() {
+            torrent_task.run([this, peer_client]() {
                 peer_client->start(this);
             });
         }
@@ -251,7 +252,7 @@ void BTClient::initiate(atm_bool& running)
                 peer_client->sendAvailPieces(bit_field);
 
                 // Start torrent task for this connection
-                torrent_task.run([this, &peer_client]() {
+                torrent_task.run([this, peer_client]() {
                     peer_client->start(this);
                 });
             }
@@ -343,7 +344,8 @@ bool BTClient::hasIncomingData(const TCPSocket* client_sock) const
     FD_SET(client_sock->sock(), &read_fds);
     timeval no_block {0, 0};
 
-    return ::select(1, &read_fds, nullptr, nullptr, &no_block) > 0;
+    return ::select(client_sock->sock() + 1, &read_fds,
+                    nullptr, nullptr, &no_block) > 0;
 }
 
 int BTClient::recvMsg(const TCPSocket* client_sock, char* buffer,
