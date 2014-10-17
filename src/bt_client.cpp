@@ -1,6 +1,5 @@
 #include <random>
 #include <openssl/sha.h>
-#include <clany/file_operation.hpp>
 #include <clany/algorithm.hpp>
 #include "bt_client.h"
 
@@ -9,7 +8,6 @@
   char buffer[256]; \
   sprintf(buffer, (format), ##__VA_ARGS__); \
   cout << buffer; \
-  log_file.second << buffer; \
 }
 
 using namespace std;
@@ -22,6 +20,7 @@ const int    HANDSHAKE_MSG_LEN = 68;
 const int    MAX_TRYING_NUM    = 5;
 const double SLEEP_INTERVAL    = 0.1;
 const llong  FILE_CHUNK_SIZE   = 100 * 1024 * 1024; // 100 MB
+const size_t BUFF_LEN          = 255;
 
 const uint SEED = random_device()();
 auto  rd_engine = default_random_engine(SEED);
@@ -106,7 +105,7 @@ void BTClient::run()
         ATOMIC_PRINT("Already have the file, now seeding\n");
     }
 
-    atomic<bool> running[2];
+    atm_bool running[2];
     fill(begin(running), end(running), true);
 
     task_group search_peers;
@@ -141,18 +140,20 @@ void BTClient::run()
     // Wait for all tasks to terminate
     search_peers.wait();
     torrent_task.wait();
+
+    log_file.second << log_buffer;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // BTClient private methods
-auto BTClient::getIncomingPeer() const -> PeerClient::Ptr
+auto BTClient::getIncomingPeer() -> PeerClient::Ptr
 {
     SockAddrIN client_addr;
     socklen_t  addr_sz = sizeof(client_addr);
     memset(&client_addr, 0, addr_sz);
     if (hasPendingConnections()) {
         auto sock = ::accept(tcp_socket.sock(), (SockAddr*)&client_addr, &addr_sz);
-        return PeerClient::Ptr(new PeerClient(meta_info, sock, client_addr,
+        return PeerClient::Ptr(new PeerClient(meta_info, this, sock, client_addr,
                                               PeerClient::ConnectedState));
     }
 
@@ -162,7 +163,7 @@ auto BTClient::getIncomingPeer() const -> PeerClient::Ptr
 void BTClient::listen(atm_bool& running)
 {
     if (!listen(listenPort())) {
-        ATOMIC_PRINT("Fail to establish peer searching task!\n");
+        ATOMIC_PRINT("Fail to listen on port %d\n", listenPort());
         return;
     }
     ATOMIC_PRINT("Waiting for incoming request...\n");
@@ -185,7 +186,10 @@ void BTClient::listen(atm_bool& running)
                 auto peer_iter = find(peer_list.begin(), peer_list.end(),
                                       (*iter)->getPeerInfo());
                 if (peer_iter != peer_list.end()) peer_iter->is_connected = false;
-                ATOMIC_PRINT("Disconnected from %s\n", (*iter)->peekAddress().c_str());
+                char log_buffer[BUFF_LEN];
+                sprintf(log_buffer, "Disconnected from %s", (*iter)->peekAddress().c_str());
+                ATOMIC_PRINT("%s\n", log_buffer);
+                writeLog(log_buffer);
                 iter = connection_list.erase(iter);
                 continue;
             }
@@ -205,7 +209,7 @@ void BTClient::listen(atm_bool& running)
 
             // Start torrent task for this connection
             torrent_task.run([this, peer_client]() {
-                peer_client->start(this);
+                peer_client->start();
             });
         }
     }
@@ -223,7 +227,7 @@ void BTClient::initiate(atm_bool& running)
             if (peer.is_connected || !peer.is_available) continue;
             if (!running || is_complete) break;
 
-            auto peer_client = make_shared<PeerClient>(meta_info);
+            auto peer_client = make_shared<PeerClient>(meta_info, this);
             if (!peer_client->isValid()) {
                 ATOMIC_PRINT("Fail to create socket for download task!\n");
                 continue;
@@ -253,7 +257,7 @@ void BTClient::initiate(atm_bool& running)
 
                 // Start torrent task for this connection
                 torrent_task.run([this, peer_client]() {
-                    peer_client->start(this);
+                    peer_client->start();
                 });
             }
             if (connection_list.size() >= max_connections) break;
@@ -285,6 +289,8 @@ void BTClient::removePeerInfo(const Peer& peer)
 
 bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
 {
+    string peer_id;
+
     auto sendMessage = [this, &client_sock]() {
         string peerid = pid;
         peerid.resize(20);
@@ -298,7 +304,7 @@ bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
         return true;
     };
 
-    auto receiveMessge = [this, &client_sock](ByteArray& buffer) {
+    auto receiveMessge = [this, &client_sock, &peer_id](ByteArray& buffer) {
         // Wait for incoming handshake message, drop connection if no response within 10s
         recvMsg(client_sock, buffer, HANDSHAKE_MSG_LEN, 10);
 
@@ -310,24 +316,41 @@ bool BTClient::handShake(PeerClient* client_sock, bool is_initiator)
             client_sock->disconnect();
             return false;
         }
-        client_sock->setPeerInfo({buffer.sub(48, 20), client_sock->peekAddress(),
+        peer_id = buffer.sub(48, 20);
+        client_sock->setPeerInfo({peer_id, client_sock->peekAddress(),
                                  client_sock->port(), true});
         return true;
     };
 
     // initiator send handshake message first, then receive respond
     // recipient receive handshake message first, then send back respond
+    char log_buffer[255];
+    sprintf(log_buffer, "HANDSHAKE INIT ip: %s, port: %d",
+            client_sock->peekAddress().c_str(), client_sock->port());
+    writeLog(log_buffer);
+
     ByteArray buffer;
+    bool is_success = true;
     if (is_initiator) {
-        if (!sendMessage()) return false;
-        if (!receiveMessge(buffer))  return false;
+        if (!sendMessage()) is_success = false;
+        if (!receiveMessge(buffer))  is_success = false;
     }
     else {
-        if (!receiveMessge(buffer)) return false;
-        if (!sendMessage()) return false;
+        if (!receiveMessge(buffer)) is_success = false;
+        if (!sendMessage()) is_success = false;
     }
 
-    return true;
+    if (is_success) {
+        sprintf(log_buffer, "HANDSHAKE SUCCESS ip: %s:%d, pid: %s",
+                client_sock->peekAddress().c_str(), client_sock->port(), peer_id.c_str());
+        writeLog(log_buffer);
+    } else {
+        sprintf(log_buffer, "HANDSHAKE FAIL ip: %s:%d",
+                client_sock->peekAddress().c_str(), client_sock->port());
+        writeLog(log_buffer);
+    }
+
+    return is_success;
 }
 
 void BTClient::broadcastPU(int idx) const
@@ -409,13 +432,10 @@ ByteArray BTClient::getBlock(const ByteArray& block_header) const
     return getBlock(header[0], header[1], header[2]);
 }
 
-void BTClient::writeBlock(const ByteArray& block_msg)
+void BTClient::writeBlock(int piece, int offset, const ByteArray& block_data)
 {
-    auto blk_header = reinterpret_cast<const int*>(block_msg.data());
-    int piece_idx = blk_header[0];
-    int offset = blk_header[1];
-
-    download_file.write(piece_idx*meta_info.piece_length + offset, block_msg.sub(8));
+    downloaded += block_data.size();
+    download_file.write(piece*meta_info.piece_length + offset, block_data);
 }
 
 bool BTClient::loadFile(const string& file_name)

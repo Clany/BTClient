@@ -47,23 +47,25 @@ class PeerClient : public TCPSocket{
 
     friend bool operator==(const PeerClient& left, const PeerClient& right);
 
-    void listen(BTClient* bt_client);
-    void request(BTClient* bt_client);
+    void listen();
+    void request();
 
 public:
     using Ptr = shared_ptr<PeerClient>;
     enum { CHOKE = 0, UNCHOKE = 1, INTERESTED = 2, NOT_INTERESTED = 3,
            HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
 
-    PeerClient(const MetaInfo& meta_info)
+    PeerClient(const MetaInfo& meta_info, BTClient* torrent_client)
         : torrent_info(meta_info), bit_field(meta_info.num_pieces),
-          am_choking(false), am_interested(false),
+          bt_client(torrent_client), am_choking(false), am_interested(false),
           peer_choking(true), peer_interested(false) {
         running = true;
     };
-    PeerClient(const MetaInfo& meta_info, int sock, SockAddrIN addr, SockState state)
+    PeerClient(const MetaInfo& meta_info, BTClient* torrent_client,
+               int sock, SockAddrIN addr, SockState state)
         : TCPSocket(sock, addr, state), torrent_info(meta_info),
-          bit_field(meta_info.num_pieces), am_choking(false), am_interested(false),
+          bt_client(torrent_client), bit_field(meta_info.num_pieces),
+          am_choking(false), am_interested(false),
           peer_choking(true), peer_interested(false) {
         running = true;
     }
@@ -79,7 +81,7 @@ public:
         return bit_field[idx];
     }
 
-    void start(BTClient* bt_client);
+    void start();
     void stop() { running = false; }
     void wait() { peer_task.wait(); }
     bool isRunning() const { return running; }
@@ -101,14 +103,21 @@ public:
     // piece: <len=0009+X><id=7><index><begin><block>
     bool sendBlock(int piece, int offset, const ByteArray& data) const;
 
+private:
     void setBitField(const ByteArray& buffer, const vector<int>& needed_piece);
     void updatePiece(const ByteArray& buffer, const vector<int>& needed_piece);
-    void handleRequest(const ByteArray& request_msg, BTClient* bt_client);
+    void handleRequest(const ByteArray& request_msg);
+    void receiveBlock(const ByteArray& buffer);
 
-private:
+    BTClient* bt_client;
+
     const MetaInfo& torrent_info;
     atm_bool running;
     tbb::task_group peer_task;
+
+    string addr;
+    string addr_id;
+    char log_buffer[255];
 
     Peer peer_info;
     BitField bit_field;

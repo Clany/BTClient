@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <chrono>
 #include "clany/cmdparser.hpp"
 #include "metainfo.h"
 
@@ -110,7 +111,11 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
     if (bt_args.verbose) cout << ss.str();
 
     ofstream ofs(bt_args.log_file);
-    if (ofs) ofs << ss.str();
+    if (ofs) {
+        auto now = chrono::system_clock::now();
+        auto tt = chrono::system_clock::to_time_t(now);
+        ofs << ctime(&tt) << endl;
+    };
 
     return;
 }

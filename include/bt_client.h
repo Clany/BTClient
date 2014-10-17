@@ -3,7 +3,8 @@
 
 #include <list>
 #include <fstream>
-#include <clany/clany_defs.h>
+#include <chrono>
+#include <clany/file_operation.hpp>
 #include "peer_client.h"
 #include "tcp_server.hpp"
 #include "metainfo.h"
@@ -32,7 +33,7 @@ class BTClient : public TCPServer {
     };
 
     // Search for peer clients, fill connection list
-    auto getIncomingPeer() const -> PeerClient::Ptr;
+    auto getIncomingPeer() -> PeerClient::Ptr;
     using TCPServer::listen;
     void listen(atm_bool& running);
     void initiate(atm_bool& running);
@@ -58,7 +59,7 @@ class BTClient : public TCPServer {
 
     auto getBlock(int piece, int offset, int length) const -> ByteArray;
     auto getBlock(const ByteArray& block_header) const->ByteArray;
-    void writeBlock(const ByteArray& block_msg);
+    void writeBlock(int piece, int offset, const ByteArray& block_data);
 
     // Load existing (partial)downloaded file
     bool loadFile(const string& file_name);
@@ -70,10 +71,14 @@ public:
     using Ptr = shared_ptr<BTClient>;
 
     BTClient(const string& peer_id, int16_t port = 6767)
-        : max_connections(4), ts_init(16), pid(peer_id) {
+        : max_connections(4), ts_init(16), pid(peer_id),
+          start(chrono::system_clock::now()) {
         // Set peer id to bt_client:port if not provided
         listen_port = port;
         if (pid.empty()) pid = string("bt_client") + ":" + to_string(listen_port);
+
+        downloaded = 0;
+        uploaded   = 0;
     };
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
@@ -83,6 +88,21 @@ public:
         log_file.second.open(file_name, ios::app);
         if (log_file.second) return true;
         return false;
+    }
+
+    void writeLog(const string& message) {
+        tbb::mutex::scoped_lock(log_mtx);
+        auto now = chrono::system_clock::now();
+        chrono::duration<float> delta = now - start;
+
+        char elapsed_time[20];
+        sprintf(elapsed_time, "[%6.2f] ", delta.count());
+        log_buffer +=  elapsed_time + message + "\n";
+        if (log_buffer.length() > 1e4) {
+            log_file.second << log_buffer;
+            log_file.second.flush();
+            log_buffer.clear();
+        }
     }
 
     void addPeerAddr(const string& address, ushort port) {
@@ -110,8 +130,14 @@ private:
 
     string save_name;
     pair<string, ofstream> log_file;
+    string log_buffer;
+    tbb::mutex log_mtx;
+    chrono::time_point<chrono::system_clock> start;
 
+    atm_int downloaded;
+    atm_int uploaded;
     bool is_complete = false;
+    bool verbose     = false;
 };
 _CLANY_END
 

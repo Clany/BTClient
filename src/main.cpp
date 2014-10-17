@@ -12,35 +12,39 @@ INIT_WINSOCK
 
 int main(int argc, char* argv[])
 {
-    CmdArgs bt_args;
-    parseArgs(bt_args, argc, argv);
-
-    BTClient bt_client(bt_args.id, bt_args.port);
-    if (!bt_client.setTorrent(bt_args.torrent_file, bt_args.save_file)) {
-        cerr << "Input torrent file is invalid!" << endl;
-        exit(1);
-    };
-
-    if (!bt_client.setLogFile(bt_args.log_file)) {
-        cerr << "Failed to set log file" << endl;
-        exit(1);
-    }
-
-    for (const auto& peer_addr : bt_args.peers) {
-        auto sep = peer_addr.find(':');
-        string ip = peer_addr.substr(0, sep);
-        ushort port = static_cast<ushort>(stoi(peer_addr.substr(sep + 1)));
-        bt_client.addPeerAddr(ip, port);
-    }
-
-    if (bt_args.verbose) {
-        printTorrentFileInfo(bt_client.getMetaInfo(), bt_args.log_file);
-    }
-
     try {
+        CmdArgs bt_args;
+        parseArgs(bt_args, argc, argv);
+
+        BTClient bt_client(bt_args.id, bt_args.port);
+        if (!bt_client.setTorrent(bt_args.torrent_file, bt_args.save_file)) {
+            cerr << "Input torrent file is invalid!" << endl;
+            exit(1);
+        };
+
+        if (!bt_client.setLogFile(bt_args.log_file)) {
+            cerr << "Failed to set log file" << endl;
+            exit(1);
+        }
+
+        for (const auto& peer_addr : bt_args.peers) {
+            auto sep = peer_addr.find(':');
+            string ip = peer_addr.substr(0, sep);
+            ushort port = static_cast<ushort>(stoi(peer_addr.substr(sep + 1)));
+            bt_client.addPeerAddr(ip, port);
+        }
+
+        if (bt_args.verbose) {
+            printTorrentFileInfo(bt_client.getMetaInfo(), bt_args.log_file);
+        }
+
         bt_client.run();
+        bt_client.writeLog("Exit program");
     }
     catch (const SocketError& err) {
+        cerr << err.what() << endl;
+    }
+    catch (const FileExcept& err) {
         cerr << err.what() << endl;
     }
     catch (...) {
