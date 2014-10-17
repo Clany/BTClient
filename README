@@ -34,7 +34,7 @@ The binary file will be put under the build directory. To run the program:
 ./bt_client [OPTIONS] file.torrent
 
 File description:
- - code/include/clany/*: utility files include some data structures and command line parser.
+ - code/include/clany/*: utility files including some data structures and command line parser.
  
  - code/include/socket.hpp|tcp_server.hpp: basic classes that encapsulate socket functions.
  - code/include/setup.hpp: functions handling command line arguments and information printing.
@@ -47,4 +47,4 @@ File description:
  - code/src/* : corresponding implementation details.
  
  - sample/* : log files from one of my own tests. This test include 4 peers, one of which is
-              a seeder.
+              a seeder. Also contain a shot screen of another test.
