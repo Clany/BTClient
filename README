@@ -32,19 +32,3 @@ module load gcc -> cd [your_build_dir] -> cmake .. -> make -j8" if you want to b
 in other directory.
 The binary file will be put under the build directory. To run the program:
 ./bt_client [OPTIONS] file.torrent
-
-File description:
- - code/include/clany/*: utility files include some data structures and command line parser.
- 
- - code/include/socket.hpp|tcp_server.hpp: basic classes that encapsulate socket functions.
- - code/include/setup.hpp: functions handling command line arguments and information printing.
- - code/include/metainfo.h: torrent file parser class.
- - code/include/bt_client.h: BTClient class that manage the torrent task, like peer searching
-   (e.g. listening and initate), add/remove peers/connections, read/write temporary file.
- - code/include/peer_client.h: PeerClient class that represent each connection, manage
-   download/upload tasks, message exchange is implemented in this class.
-   
- - code/src/* : corresponding implementation details.
- 
- - sample/* : log files from one of my own tests. This test include 4 peers, one of which is
-              a seeder.
