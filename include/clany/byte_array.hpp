@@ -39,7 +39,7 @@ public:
     using Base = vector<char>;
 
     ByteArray() = default;
-#if __cplusplus >= 201103L
+#if CPP11_SUPPORT
     using Base::Base;
 #else
     ByteArray(size_t n, char byte = char())

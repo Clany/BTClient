@@ -56,15 +56,15 @@ public:
            HAVE = 4, BITFIELD = 5, REQUEST = 6, CANCEL = 8, PIECE = 7 };
 
     PeerClient(const MetaInfo& meta_info, BTClient* torrent_client)
-        : torrent_info(meta_info), bit_field(meta_info.num_pieces),
-          bt_client(torrent_client), am_choking(false), am_interested(false),
+        : bt_client(torrent_client), torrent_info(meta_info),
+          bit_field(meta_info.num_pieces), am_choking(false), am_interested(false),
           peer_choking(true), peer_interested(false) {
         running = true;
     };
     PeerClient(const MetaInfo& meta_info, BTClient* torrent_client,
                int sock, SockAddrIN addr, SockState state)
-        : TCPSocket(sock, addr, state), torrent_info(meta_info),
-          bt_client(torrent_client), bit_field(meta_info.num_pieces),
+        : TCPSocket(sock, addr, state), bt_client(torrent_client),
+          torrent_info(meta_info), bit_field(meta_info.num_pieces),
           am_choking(false), am_interested(false),
           peer_choking(true), peer_interested(false) {
         running = true;

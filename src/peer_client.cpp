@@ -206,7 +206,7 @@ void PeerClient::start()
 {
     char buffer[BUFF_LEN];
     sprintf(buffer, "%s:%5d, pid: %s",
-            peer_info.address.c_str(), peer_info.port, peer_info.pid);
+            peer_info.address.c_str(), peer_info.port, peer_info.pid.c_str());
     addr_id = buffer;
     addr = addr_id.substr(0, addr_id.find(','));
 
@@ -279,9 +279,9 @@ bool PeerClient::sendAvailPieces(const BitField& bit_field) const
     auto msg = ByteArray(msg_header.data, 5) + payload;
 
     char log_buffer[BUFF_LEN];
-    int avail_num = bit_field.count();
+    int avail_num = (int)bit_field.count();
     sprintf(log_buffer, "MESSAGE BITFIELD TO %s, avail: %d, not avail: %d",
-            addr_id.c_str(), avail_num, bit_field.size() - avail_num);
+            addr_id.c_str(), avail_num, (int)bit_field.size() - avail_num);
     bt_client->writeLog(log_buffer);
 
     return write(msg);
@@ -323,7 +323,7 @@ bool PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
 
     char log_buffer[BUFF_LEN];
     sprintf(log_buffer, "MESSAGE PIECE TO %s, piece: %d, offset: %d, length: %d",
-            addr_id.c_str(), piece, offset, data.size());
+            addr_id.c_str(), piece, offset, (int)data.size());
     bt_client->writeLog(log_buffer);
 
     return write(msg);
@@ -331,10 +331,10 @@ bool PeerClient::sendBlock(int piece, int offset, const ByteArray& data) const
 
 void PeerClient::setBitField(const ByteArray& buffer, const vector<int>& needed_piece)
 {
-    size_t bf_sz = torrent_info.num_pieces;
+    int bf_sz = torrent_info.num_pieces;
     bit_field.fromByteArray(bf_sz, buffer);
 
-    int avail_num = bit_field.count();
+    int avail_num = (int)bit_field.count();
     sprintf(log_buffer, "MESSAGE BITFIELD FROM %s, avail: %d, not avail: %d",
             addr_id.c_str(), avail_num, bf_sz - avail_num);
 

@@ -176,7 +176,7 @@ protected:
 
 // This class access the bit from left to right
 struct BitField : DynBitset {
-#if __cplusplus >= 201103L
+#if CPP11_SUPPORT
     using DynBitset::DynBitset;
 #else
     BitField() = default;
