@@ -33,7 +33,6 @@ class BTClient : public TCPServer {
     };
 
     // Search for peer clients, fill connection list
-    auto getIncomingPeer() -> PeerClient::Ptr;
     using TCPServer::listen;
     void listen(atm_bool& running);
     void initiate(atm_bool& running);
@@ -43,9 +42,7 @@ class BTClient : public TCPServer {
     void removePeerInfo(const Peer& peer);
 
     // Mange torrent task
-    void download(atm_bool& running, const vector<int>& idx_vec);
-    void handleMsg(atm_bool& running);
-
+    auto getIncomingPeer() -> PeerClient::Ptr;
     bool handShake(PeerClient* peer_client, bool is_initiator);
     void broadcastPU(int piece_idx) const;
 
@@ -58,10 +55,10 @@ class BTClient : public TCPServer {
                 size_t msg_len = string::npos, double time_out = 3.0) const;
 
     auto getBlock(int piece, int offset, int length) const -> ByteArray;
-    auto getBlock(const ByteArray& block_header) const->ByteArray;
+    auto getBlock(const ByteArray& block_header) const -> ByteArray;
     void writeBlock(int piece, int offset, const ByteArray& block_data);
 
-    // Load existing (partial)downloaded file
+    // Load existing (partial) downloaded file
     bool loadFile(const string& file_name);
 
     // Return true if SHA1 value of piece is correct, update pieces accordingly
@@ -70,11 +67,12 @@ class BTClient : public TCPServer {
 public:
     using Ptr = shared_ptr<BTClient>;
 
-    BTClient(const string& peer_id, int16_t port = 6767)
+    BTClient(const string& peer_id, const string& ip = "", int16_t port = 6767)
         : max_connections(4), ts_init(16), pid(peer_id),
           start(chrono::system_clock::now()) {
         // Set peer id to bt_client:port if not provided
         listen_port = port;
+        local_addr  = ip;
         if (pid.empty()) pid = string("bt_client") + ":" + to_string(listen_port);
 
         downloaded = 0;
@@ -83,29 +81,16 @@ public:
 
     bool setTorrent(const string& torrent_name, const string& save_file_name = "");
 
-    bool setLogFile(const string& file_name) {
-        log_file.first = file_name;
-        log_file.second.open(file_name, ios::app);
-        if (log_file.second) return true;
-        return false;
-    }
+    bool setLogFile(const string& file_name);
 
-    void writeLog(const string& message) {
-        tbb::mutex::scoped_lock(log_mtx);
-        auto now = chrono::system_clock::now();
-        chrono::duration<float> delta = now - start;
+    void writeLog(const string& message);
 
-        char elapsed_time[20];
-        sprintf(elapsed_time, "[%6.2f] ", delta.count());
-        log_buffer +=  elapsed_time + message + "\n";
-        if (log_buffer.length() > 1e4) {
-            log_file.second << log_buffer;
-            log_file.second.flush();
-            log_buffer.clear();
-        }
+    void setMaxConnection(int max_connections) {
+        this->max_connections = max_connections;
     }
 
     void addPeerAddr(const string& address, ushort port) {
+        // Peer ID, ip, port, is_connected, is_available, trying times
         peer_list.push_back({"", address, port, false, true, 0});
     }
 

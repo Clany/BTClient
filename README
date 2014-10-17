@@ -8,9 +8,43 @@ Name: An, Shi
 uname:anshi
 
 ------------------------
+This project is implemented in C++, Intel's TBB library is also used for tasks
+management.
 
-Feature list:
- - Available on Windows, Linux and OS X platform
- - Support N (<=4) peers simultaneously download/upload
- - Press q any time to quite the program
- - Resume the torrent task from where left (last quit)
+Basic tasks accomplished:
+ - N-Seeders and N-Leechers
+
+Additional features:
+ - Available (can be compiled) on Windows, Linux and OS X platform
+ - Support simultaneously download/upload
+ - Pre-allocate file on disk, read/write on this tmp file
+ - Resume the torrent task from where left (automatically detect downloaded pieces)
+ - Press q/Q to quit the program at any time
+ - Able to deal with various error conditions, such as connection lost(e.g. other
+   clients crashed), received non-standard message (e.g. message id is unknown or
+   received corrupted data), in such case our program will drop the connection and
+   furthermore, try to reconnect if the peer is an input from command line
+
+Compiling:
+CMake is used for project management. To compile the code, just run the simple script
+file "build.sh" we provided. Or follow the basic routine "mkdir [your_build_dir] ->
+module load gcc -> cd [your_build_dir] -> cmake .. -> make -j8" if you want to build
+in other directory.
+The binary file will be put under the build directory. To run the program:
+./bt_client [OPTIONS] file.torrent
+
+File description:
+ - code/include/clany/*: utility files include some data structures and command line parser.
+ 
+ - code/include/socket.hpp|tcp_server.hpp: basic classes that encapsulate socket functions.
+ - code/include/setup.hpp: functions handling command line arguments and information printing.
+ - code/include/metainfo.h: torrent file parser class.
+ - code/include/bt_client.h: BTClient class that manage the torrent task, like peer searching
+   (e.g. listening and initate), add/remove peers/connections, read/write temporary file.
+ - code/include/peer_client.h: PeerClient class that represent each connection, manage
+   download/upload tasks, message exchange is implemented in this class.
+   
+ - code/src/* : corresponding implementation details.
+ 
+ - sample/* : log files from one of my own tests. This test include 4 peers, one of which is
+              a seeder.

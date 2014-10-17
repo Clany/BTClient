@@ -11,6 +11,7 @@
 _CLANY_BEGIN
 struct CmdArgs {
     int    verbose       = 0;    // verbose level
+    string ip            = "";   // bind to this ip
     string save_file     = "";   // filename to save to
     string log_file      = "";   // log file name
     string torrent_file  = "";   // torrent file name
@@ -28,8 +29,8 @@ inline void usage(ostream& file)
 {
     file << "bt-client [OPTIONS] file.torrent\n"
          << "  -h            \t Print this help screen\n"
-         << "  -b ip         \t Bind to this ip for incoming connections, ports\n"
-         << "                \t are selected automatically\n"
+         << "  -b ip         \t Bind to this ip for incoming connections\n"
+         << "  -P port       \t Bind to this port for incoming connections (dflt: 6767)\n"
          << "  -s save_file  \t Save the torrent in directory save_dir (dflt: .)\n"
          << "  -l log_file   \t Save logs to log_filw (dflt: bt-client.log)\n"
          << "  -p ip:port    \t Instead of contacting the tracker for a peer list,\n"
@@ -44,13 +45,16 @@ inline void parseArgs(CmdArgs& bt_args, int argc, char* argv[])
     // default log file
     bt_args.log_file = "bt-client.log";
 
-    CmdLineParser cmd_parser(argc, argv, "hvp:s:l:P:I:");
+    CmdLineParser cmd_parser(argc, argv, "hvb:P:p:s:l:I:");
     int ch = 0; //ch for each flag
     while ((ch = cmd_parser.get()) != -1) {
         switch (ch) {
         case 'h': // help
             usage(cout);
             exit(0);
+            break;
+        case 'b': // bind to this ip
+            bt_args.ip = cmd_parser.getArg<string>();
             break;
         case 'v': // verbose
             bt_args.verbose = 1;

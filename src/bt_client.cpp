@@ -17,7 +17,7 @@ using namespace cls;
 namespace {
 const size_t MSG_SIZE_LIMITE   = 1 * 1024 * 1024;    // 1mb
 const int    HANDSHAKE_MSG_LEN = 68;
-const int    MAX_TRYING_NUM    = 5;
+const int    MAX_TRYING_TIMES  = 5;
 const double SLEEP_INTERVAL    = 0.1;
 const llong  FILE_CHUNK_SIZE   = 100 * 1024 * 1024; // 100 MB
 const size_t BUFF_LEN          = 255;
@@ -97,6 +97,30 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
     return true;
 }
 
+bool BTClient::setLogFile(const string& file_name)
+{
+    log_file.first = file_name;
+    log_file.second.open(file_name, ios::app);
+    if (log_file.second) return true;
+    return false;
+}
+
+void BTClient::writeLog(const string& message)
+{
+    tbb::mutex::scoped_lock(log_mtx);
+    auto now = chrono::system_clock::now();
+    chrono::duration<float> delta = now - start;
+
+    char elapsed_time[20];
+    sprintf(elapsed_time, "[%6.2f] ", delta.count());
+    log_buffer += elapsed_time + message + "\n";
+    if (log_buffer.length() > 1e4) {
+        log_file.second << log_buffer;
+        log_file.second.flush();
+        log_buffer.clear();
+    }
+}
+
 void BTClient::run()
 {
     ATOMIC_PRINT("Starting Main Loop, press q/Q to exit the program\n");
@@ -141,6 +165,7 @@ void BTClient::run()
     search_peers.wait();
     torrent_task.wait();
 
+    writeLog("Exit program");
     log_file.second << log_buffer;
 }
 
@@ -162,8 +187,15 @@ auto BTClient::getIncomingPeer() -> PeerClient::Ptr
 
 void BTClient::listen(atm_bool& running)
 {
-    if (!listen(listenPort())) {
-        ATOMIC_PRINT("Fail to listen on port %d\n", listenPort());
+    bool listen_success;
+    if (local_addr.empty()) {
+        listen_success = listen(listenPort());
+    } else {
+        listen_success = listen(local_addr, listenPort());
+    }
+    if (!listen_success) {
+        ATOMIC_PRINT("Fail to listen on %s:%d\n",
+                     listenAddr().c_str(), listenPort());
         return;
     }
     ATOMIC_PRINT("Waiting for incoming request...\n");
@@ -236,8 +268,8 @@ void BTClient::initiate(atm_bool& running)
             if (!peer_client->connect(peer.address, peer.port)) {
                 ATOMIC_PRINT("Peer not available: %s:%d, trying %d/%d\n",
                              peer.address.c_str(), peer.port,
-                             ++peer.trying_num, MAX_TRYING_NUM);
-                if (peer.trying_num == MAX_TRYING_NUM) {
+                             ++peer.trying_times, MAX_TRYING_TIMES);
+                if (peer.trying_times == MAX_TRYING_TIMES) {
                     ATOMIC_PRINT("Reach max trying number, delete peer from list\n");
                     peer.is_available = false;
                 }
@@ -248,7 +280,7 @@ void BTClient::initiate(atm_bool& running)
                 // Save peer_info, skip if connection is duplicate
                 peer.pid = peer_client->getPeerInfo().pid;
                 peer.is_connected = true;
-                peer.trying_num   = 0;
+                peer.trying_times = 0;
                 if (!addPeerClient(peer_client)) continue;
 
                 ATOMIC_PRINT("Establish connection to %s:%d\n",

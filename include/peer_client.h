@@ -15,7 +15,7 @@ struct Peer
 
     bool is_connected;
     bool is_available;
-    int  trying_num;
+    int  trying_times;
 };
 
 inline bool operator==(const Peer& left, const Peer& right)
