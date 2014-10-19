@@ -1,18 +1,18 @@
 ﻿/////////////////////////////////////////////////////////////////////////////////
 // The MIT License(MIT)
-// 
+//
 // Copyright (c) 2014 Tiangang Song
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files(the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and / or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions :
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.IN NO EVENT SHALL THE
@@ -25,101 +25,91 @@
 #ifndef CLANY_TIMER_HPP
 #define CLANY_TIMER_HPP
 
-#if defined(WIN32) || defined(_WIN32) || defined(__MINGW32__)
-#  include <ctime>
-#  define CLOCK()  clock()
-#  define TICK_FACTOR  CLOCKS_PER_SEC
-#else
-#  include <unistd.h>
-#  include <sys/times.h>
-#  define CLOCK()  ::times(NULL)
-#  define TICK_FACTOR  TICK_PER_SECOND
-   const int TICK_PER_SECOND = ::sysconf(_SC_CLK_TCK);
-#endif
-
-#include <iostream>
-#include <iomanip>
-
+#include <chrono>
+#include <mutex>
+#include <cstdio>
 #include "clany_defs.h"
 
 
 _CLANY_BEGIN
-class ScopeTimer
-{
+class ScopeTimer {
+    using sys_clock = chrono::system_clock;
+    using seconds   = chrono::duration<double>;
+
 public:
-    explicit ScopeTimer(int precision = 3) :timer_ (CLOCK()), precision_ (precision) {}
+    explicit ScopeTimer(int precision = 3)
+        :start(sys_clock::now()), prec(precision) {}
 
     ~ScopeTimer()
     {
-        timer_ = CLOCK() - timer_;
-        cout << setprecision(precision_) << "Time elapsed: "
-             << static_cast<double>(timer_) / TICK_FACTOR << "s"
-             << endl;
+        seconds delta = sys_clock::now() - start;
+        printf("Time elapsed: %.*fs\n", prec, delta.count());
     }
 
 private:
-    clock_t timer_;
-    int precision_;
+    sys_clock::time_point start;
+    int prec;
 };
 
+class CPUTimer {
+    using sys_clock = chrono::system_clock;
+    using seconds   = chrono::duration<double>;
 
-class CPUTimer
-{
 public:
-    explicit CPUTimer(bool is_started = true) :
-        timer_(0), duration_berfore_(0), is_stopped_(false)
+    explicit CPUTimer(bool is_started = true)
+        : start_point(), since_begin(seconds::zero()),
+          is_stopped(false), need_print(true)
     {
-        if (is_started) {
-            start();
-        }
+        if (is_started) start();
     }
 
-    double elapsed(string process_name = "Since begin", int precision = 3)
+    double elapsed(const string& title = "Since begin", int precision = 3)
     {
-        if (is_stopped_) {
-            cout << "Paused" << endl;
+        if (is_stopped) {
+            printf("Paused\n");
             return -1;
         }
 
-        double last_duration = static_cast<double>(CLOCK() - timer_) / TICK_FACTOR;
-        double since_begin = last_duration + duration_berfore_;
-        cout << setprecision(precision) << process_name.c_str() << ": "
-             << since_begin << "s" << endl;
-             
-        timer_ = CLOCK();
-        duration_berfore_ += last_duration;
-        
-        return since_begin;
+        auto now     = sys_clock::now();
+        since_begin += now - start_point;
+        start_point  = now;
+
+        if(need_print) printf("%s: %.*fs\n", title.c_str(),
+                              precision, since_begin.count());
+
+        return since_begin.count();
     }
-    
-    double delta(string process_name = "Since last check", int precision = 3)
+
+    double delta(const string& title = "Since last check", int precision = 3)
     {
-        if (is_stopped_) {
-            cout << "Paused" << endl;
+        if (is_stopped) {
+            printf("Paused\n");
             return -1;
         }
 
-        double last_duration = static_cast<double>(CLOCK() - timer_) / TICK_FACTOR;
-        cout << setprecision(precision) << process_name.c_str() << ": "
-             << last_duration << "s" << endl;
+        auto now      = sys_clock::now();
+        seconds delta = now - start_point;
+        since_begin  += delta;
+        start_point   = now;
 
-        timer_ = CLOCK();
-        duration_berfore_ += last_duration;
-        
-        return last_duration;
+        if (need_print) printf("%s: %.*fs\n", title.c_str(),
+                               precision, delta.count());
+
+        return delta.count();
     }
 
     void start()
     {
-        is_stopped_ = false;
-        timer_ = CLOCK();
+        is_stopped  = false;
+        start_point = sys_clock::now();
     }
 
     void pause()
     {
-        if (!is_stopped_) {
-            is_stopped_ = true;
-            duration_berfore_ += static_cast<double>(CLOCK() - timer_) / TICK_FACTOR;
+        if (!is_stopped) {
+            is_stopped    = true;
+            seconds delta = sys_clock::now() - start_point;
+            since_begin  += delta;
         }
     }
 
@@ -130,17 +120,19 @@ public:
 
     void reset(bool is_started = true)
     {
-        duration_berfore_ = 0;
-        is_stopped_ = false;
-        if (is_started) {
-            start();
-        }
+        since_begin = seconds::zero();
+        is_stopped  = false;
+        if (is_started) start();
     }
 
+    void printOff() { need_print = false; }
+    void printOn()  { need_print = true; }
+
 private:
-    clock_t timer_;
-    double duration_berfore_;
-    bool is_stopped_;
+    sys_clock::time_point start_point;
+    seconds since_begin;
+    bool    is_stopped;
+    bool    need_print;
 };
 _CLANY_END
 
