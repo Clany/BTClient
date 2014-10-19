@@ -81,7 +81,7 @@ bool BTClient::setTorrent(const string& torrent_name, const string& save_file_na
     }
 
     MetaInfoParser parser;
-    if (!parser.parse(readBinaryFile(torrent_name), meta_info)) return false;
+    if (!parser.parse(ByteArray(readBinaryFile(torrent_name)), meta_info)) return false;
     save_name = save_file_name.empty() ? meta_info.name : save_file_name;
 
     // Initialize piece status (-1: not have, 0: downloading, 1: have)

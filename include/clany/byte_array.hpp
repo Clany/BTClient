@@ -39,6 +39,8 @@ public:
     using Base = vector<char>;
 
     ByteArray() = default;
+    ByteArray(const Base& data) : Base(data) {}
+    ByteArray(Base&& data) : Base(move(data)) {}
 #if CPP11_SUPPORT
     using Base::Base;
 #else
