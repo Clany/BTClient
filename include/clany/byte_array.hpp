@@ -22,8 +22,8 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#ifndef BYTE_ARRAY_HPP
-#define BYTE_ARRAY_HPP
+#ifndef CLS_BYTE_ARRAY_HPP
+#define CLS_BYTE_ARRAY_HPP
 
 #include <cstring>
 #include <vector>
@@ -128,4 +128,4 @@ _CLANY_END
 
 
 
-#endif // BYTE_ARRAY_HPP
+#endif // CLS_BYTE_ARRAY_HPP

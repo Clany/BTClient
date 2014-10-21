@@ -6,6 +6,8 @@ using namespace cls;
 
 bool MetaInfoParser::parse(const ByteArray& data, MetaInfo& meta_info)
 {
+    if (data.empty()) return false;
+
     clear();
     file_data = data;
     idx = 0;

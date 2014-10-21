@@ -28,21 +28,24 @@ private:\
 };\
 const WSA wsa;
 
+#include <vector>
 #include <cstring>
 #include <string>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
-#include "clany/byte_array.hpp"
+#include "clany/clany_defs.h"
 
 _CLANY_BEGIN
 using SockAddrIN  = sockaddr_in;
 using SockAddr    = sockaddr;
 
+#if CLS_HAS_EXCEPT
 class SocketError : public runtime_error {
 public:
     SocketError(const string& err) : runtime_error(err.c_str()) {}
 };
+#endif
 
 class AbstractSocket
 {
@@ -130,7 +133,7 @@ public:
         close();
     }
 
-    bool isValid() const { return handle >= 0; }
+    bool isValid() const { return handle != INVALID_SOCKET; }
 
     bool hasData() const {
         fd_set read_fds;
@@ -145,7 +148,7 @@ public:
         return write(message.c_str(), message.length());
     }
 
-    virtual bool write(const ByteArray& data) const {
+    virtual bool write(const vector<char>& data) const {
         return write(data.data(), data.size());
     }
 

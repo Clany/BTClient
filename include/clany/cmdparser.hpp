@@ -22,8 +22,8 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#ifndef CLANY_CMDPARSER_HPP
-#define CLANY_CMDPARSER_HPP
+#ifndef CLS_CMDPARSER_HPP
+#define CLS_CMDPARSER_HPP
 
 #include <vector>
 #include <map>
@@ -118,7 +118,14 @@ public:
         auto old_curr_idx = curr_idx;
         auto old_opt_arg  = opt_arg;
 
-        if (!findArg(name)) throw ParseError("Argument not found or not required!");
+        if (!findArg(name)) {
+#if CLS_HAS_EXCEPT
+            throw ParseError("Argument not found or not required!");
+#else
+            cerr << "Argument not found or not required!" << endl;
+            exit(1);
+#endif
+        }
 
         istringstream ss(opt_arg);
         T parsed_arg;
@@ -230,7 +237,14 @@ inline string CmdLineParser::parse<string>(const string& name) {
     auto old_curr_idx = curr_idx;
     auto old_opt_arg  = opt_arg;
 
-    if (!findArg(name)) throw ParseError("Argument not found or not required!");
+    if (!findArg(name)) {
+#if CLS_HAS_EXCEPT
+        throw ParseError("Argument not found or not required!");
+#else
+        cerr << "Argument not found or not required!" << endl;
+        exit(1);
+#endif
+    }
     string parsed_arg = opt_arg;
 
     curr_idx = old_curr_idx;
@@ -241,4 +255,4 @@ inline string CmdLineParser::parse<string>(const string& name) {
 
 _CLANY_END
 
-#endif // CLANY_CMDPARSER_HPP
+#endif // CLS_CMDPARSER_HPP

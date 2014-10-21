@@ -146,14 +146,14 @@ void BTClient::run()
     for (auto idx = 0; idx < meta_info.num_pieces; ++idx) {
         if (!bit_field[idx]) needed_piece.push_back(idx);
     }
-    shuffle(needed_piece.begin(), needed_piece.end(), rd_engine);
+    shuffle(needed_piece, rd_engine);
 
     string input_str;
     while(getline(cin, input_str)) {
         char c = input_str[0];
         // Exit the program if user press q/Q
         if (input_str.size() == 1 && (c == 'q' || c == 'Q')) {
-            fill(begin(running), end(running), false);
+            fill(running, false);
             for_each(connection_list, mem_fn(&PeerClient::stop));
             break;
         } else {

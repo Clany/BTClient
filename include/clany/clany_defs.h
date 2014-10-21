@@ -22,11 +22,13 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#ifndef CLANY_MACROS_H
-#define CLANY_MACROS_H
+#ifndef CLS_CLANY_DEFS_H
+#define CLS_CLANY_DEFS_H
 
-#define _CLANY_BEGIN	namespace cls {
-#define _CLANY_END		}
+#define _CLANY_BEGIN    namespace cls {
+#define _CLANY_END      }
+#define _CLS_BEGIN      namespace cls {
+#define _CLS_END        }
 
 #if defined CLANYAPI_EXPORTS
 #  define CLANY_EXPORTS __declspec(dllexport)
@@ -82,14 +84,37 @@
 #  define TRACE(...) ((void)0)
 #endif
 
+// Exception macros
 #  undef NOEXCEPT
-#  undef CONSTEXPR
 #if !(__cplusplus >= 201103L)
 #  define NOEXCEPT throw()
-#  define CONSTEXPR const
 #else
 #  define NOEXCEPT noexcept
-#  define CONSTEXPR constexpr
+#endif
+
+#ifndef CLS_HAS_EXCEPT
+#  define CLS_HAS_EXCEPT 1
+#endif
+
+#undef TRY_BEGIN
+#undef CATCH
+#undef CATCH_ALL
+#undef CATCH_END
+#undef THROW
+#undef RETHROW
+#if CLS_HAS_EXCEPT
+#  define TRY_BEGIN try {
+#  define TRY_END
+#  define CATCH(x)  } catch (x) {
+#  define CATCH_ALL } catch (...) {
+#  define CATCH_END }
+
+#  define THROW(x)  throw x
+#  define RETHROW   throw
+#else
+#  define TRY_BEGIN {
+#  define TRY_END   }
+#  define CATCH_END
 #endif
 
 // Some useful typedef
@@ -101,8 +126,8 @@ using ullong = unsigned long long;
 using llong  = long long;
 
 // Define GCC and Clang Version
-#define GCC_VERSION (__GNUC__ * 100 +\
-                     __GNUC_MINOR__)
+#define GCC_VERSION   (__GNUC__ * 100 +\
+                       __GNUC_MINOR__)
 #define CLANG_VERSION (__clang_major__ * 100 +\
                        __clang_minor__)
 #define CPP11_SUPPORT (GCC_VERSION >= 408 || CLANG_VERSION >= 303 || _MSC_VER >= 1900)
@@ -112,4 +137,4 @@ _CLANY_BEGIN
 using namespace std;
 _CLANY_END
 
-#endif // CLANY_MACROS_H
+#endif // CLS_CLANY_DEFS_H

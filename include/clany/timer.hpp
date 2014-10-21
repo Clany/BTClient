@@ -22,8 +22,8 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#ifndef CLANY_TIMER_HPP
-#define CLANY_TIMER_HPP
+#ifndef CLS_TIMER_HPP
+#define CLS_TIMER_HPP
 
 #include <chrono>
 #include <mutex>
@@ -136,4 +136,4 @@ private:
 };
 _CLANY_END
 
-#endif // CLANY_TIMER_HPP
+#endif // CLS_TIMER_HPP

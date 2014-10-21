@@ -22,8 +22,8 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#ifndef DYN_BITSET_HPP
-#define DYN_BITSET_HPP
+#ifndef CLS_DYN_BITSET_HPP
+#define CLS_DYN_BITSET_HPP
 
 #include <vector>
 #include <bitset>
@@ -118,7 +118,9 @@ public:
     size_t size() const { return bit_size; }
 
     bool test(size_t idx) const {
+#if CLS_HAS_EXCEPT
         if (idx >= bit_size) throw range_error("bitset subscript out of range");
+#endif
         return (*this)[idx];
     }
 
@@ -222,4 +224,4 @@ inline bool operator!=(const DynBitset& left, const DynBitset& right)
 }
 _CLANY_END
 
-#endif // DYN_BITSET_HPP
+#endif // CLS_DYN_BITSET_HPP
